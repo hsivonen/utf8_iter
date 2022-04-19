@@ -1,3 +1,6 @@
+// Any copyright is dedicated to the Public Domain.
+// https://creativecommons.org/publicdomain/zero/1.0/
+
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 use utf8_iter::Utf8Chars;
