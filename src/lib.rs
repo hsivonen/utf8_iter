@@ -149,7 +149,7 @@ impl<'a> Iterator for Utf8Chars<'a> {
 
     #[inline]
     fn next(&mut self) -> Option<char> {
-        // This loop is only broken out of a goto forward
+        // This loop is only broken out of as goto forward
         #[allow(clippy::never_loop)]
         loop {
             if self.remaining.len() < 4 {
