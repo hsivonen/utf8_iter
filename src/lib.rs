@@ -83,10 +83,17 @@ pub struct Utf8Chars<'a> {
 }
 
 impl<'a> Utf8Chars<'a> {
-    #[inline]
+    #[inline(always)]
     /// Creates the iterator from a byte slice.
     pub fn new(bytes: &'a [u8]) -> Self {
         Utf8Chars::<'a> { remaining: bytes }
+    }
+
+    /// Views the current remaining data in the iterator as a subslice
+    /// of the original slice.
+    #[inline(always)]
+    pub fn as_slice(&self) -> &'a [u8] {
+        self.remaining
     }
 
     #[inline(never)]
