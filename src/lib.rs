@@ -213,6 +213,35 @@ impl<'a> Iterator for Utf8Chars<'a> {
     }
 }
 
+impl<'a> DoubleEndedIterator for Utf8Chars<'a> {
+    #[inline]
+    fn next_back(&mut self) -> Option<char> {
+        if self.remaining.is_empty() {
+            return None;
+        }
+        let mut attempt = 1;
+        for b in self.remaining.iter().rev() {
+            if b & 0xC0 != 0x80 {
+                let (head, tail) = self.remaining.split_at(self.remaining.len() - attempt);
+                let mut inner = Utf8Chars::new(tail);
+                let candidate = inner.next();
+                if inner.as_slice().is_empty() {
+                    self.remaining = head;
+                    return candidate;
+                }
+                break;
+            }
+            if attempt == 4 {
+                break;
+            }
+            attempt += 1;
+        }
+
+        self.remaining = &self.remaining[..self.remaining.len() - 1];
+        Some('\u{FFFD}')
+    }
+}
+
 impl FusedIterator for Utf8Chars<'_> {}
 
 /// Convenience trait that adds `chars()` method similar to
@@ -230,5 +259,5 @@ impl Utf8CharsEx for [u8] {
     }
 }
 
-// No manually-written tests, because the code passed multiple days of fuzzing
-// comparing with known-good behavior.
+// No manually-written tests for forward-iteration, because the code passed multiple
+// days of fuzzing comparing with known-good behavior.

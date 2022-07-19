@@ -9,4 +9,5 @@ fuzz_target!(|data: &[u8]| {
     let from_iter: String = Utf8Chars::new(data).collect();
     let from_std = String::from_utf8_lossy(data);
     assert_eq!(from_iter, from_std);
+    assert!(Utf8Chars::new(data).rev().eq(from_std.chars().rev()));
 });

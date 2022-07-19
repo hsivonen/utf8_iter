@@ -12,9 +12,6 @@ The implementation here uses the structure that was found to be fast in the
 `encoding_rs` context but the structure hasn't been benchmarked in this
 context.
 
-At present, `DoubleEndedIterator` is not implemented, but it could be
-implemented in the future.
-
 This is a `no_std` crate.
 
 ## Licensing
@@ -30,6 +27,11 @@ Generated [API documentation](https://docs.rs/utf8_iter/) is available
 online.
 
 ## Release Notes
+
+### 1.0.1
+
+* `as_slice()` method.
+* Implement `DoubleEndedIterator`
 
 ### 1.0.0
 
