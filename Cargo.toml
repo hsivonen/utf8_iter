@@ -1,6 +1,6 @@
 [package]
 name = "utf8_iter"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 description = "Iterator by char over potentially-invalid UTF-8 in &[u8]"
 authors = ["Henri Sivonen <hsivonen@hsivonen.fi>"]
