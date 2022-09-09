@@ -28,6 +28,10 @@ online.
 
 ## Release Notes
 
+### 1.0.3
+
+* Fix an error in documentation.
+
 ### 1.0.2
 
 * `char_indices()` implementation.

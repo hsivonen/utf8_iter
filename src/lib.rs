@@ -262,7 +262,7 @@ impl Utf8CharsEx for [u8] {
         Utf8Chars::new(self)
     }
     /// Convenience method for creating a byte index and
-    /// UTF-16 iterator for the slice.
+    /// UTF-8 iterator for the slice.
     #[inline]
     fn char_indices(&self) -> Utf8CharIndices<'_> {
         Utf8CharIndices::new(self)
