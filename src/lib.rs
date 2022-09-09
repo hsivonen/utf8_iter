@@ -33,6 +33,9 @@
 //! assert_eq!(from_iter, from_std);
 //! ```
 
+mod indices;
+
+pub use crate::indices::Utf8CharIndices;
 use core::iter::FusedIterator;
 
 #[repr(align(64))] // Align to cache lines
@@ -244,10 +247,11 @@ impl<'a> DoubleEndedIterator for Utf8Chars<'a> {
 
 impl FusedIterator for Utf8Chars<'_> {}
 
-/// Convenience trait that adds `chars()` method similar to
-/// the one on string slices to byte slices.
+/// Convenience trait that adds `chars()` and `char_indices()` methods
+/// similar to the ones on string slices to byte slices.
 pub trait Utf8CharsEx {
     fn chars(&self) -> Utf8Chars<'_>;
+    fn char_indices(&self) -> Utf8CharIndices<'_>;
 }
 
 impl Utf8CharsEx for [u8] {
@@ -256,6 +260,12 @@ impl Utf8CharsEx for [u8] {
     #[inline]
     fn chars(&self) -> Utf8Chars<'_> {
         Utf8Chars::new(self)
+    }
+    /// Convenience method for creating a byte index and
+    /// UTF-16 iterator for the slice.
+    #[inline]
+    fn char_indices(&self) -> Utf8CharIndices<'_> {
+        Utf8CharIndices::new(self)
     }
 }
 

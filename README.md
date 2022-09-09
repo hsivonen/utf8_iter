@@ -28,6 +28,10 @@ online.
 
 ## Release Notes
 
+### 1.0.2
+
+* `char_indices()` implementation.
+
 ### 1.0.1
 
 * `as_slice()` method.
