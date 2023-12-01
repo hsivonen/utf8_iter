@@ -26,20 +26,12 @@ use core::iter::FusedIterator;
 ///
 /// [1]: https://github.com/rust-lang/rust/issues/103765
 #[derive(Debug, PartialEq)]
-#[repr(transparent)]
-pub struct Utf8CharsError {
-    _private: (),
-}
+#[non_exhaustive]
+pub struct Utf8CharsError;
 
 impl core::fmt::Display for Utf8CharsError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
         write!(f, "byte sequence not well-formed UTF-8")
-    }
-}
-
-impl Utf8CharsError {
-    fn new() -> Self {
-        Utf8CharsError { _private: () }
     }
 }
 
@@ -84,7 +76,7 @@ impl<'a> ErrorReportingUtf8Chars<'a> {
         }
         if !in_inclusive_range8(first, 0xC2, 0xF4) || self.remaining.len() == 1 {
             self.remaining = &self.remaining[1..];
-            return Some(Err(Utf8CharsError::new()));
+            return Some(Err(Utf8CharsError));
         }
         let second = self.remaining[1];
         let (lower_bound, upper_bound) = match first {
@@ -96,7 +88,7 @@ impl<'a> ErrorReportingUtf8Chars<'a> {
         };
         if !in_inclusive_range8(second, lower_bound, upper_bound) {
             self.remaining = &self.remaining[1..];
-            return Some(Err(Utf8CharsError::new()));
+            return Some(Err(Utf8CharsError));
         }
         if first < 0xE0 {
             self.remaining = &self.remaining[2..];
@@ -105,12 +97,12 @@ impl<'a> ErrorReportingUtf8Chars<'a> {
         }
         if self.remaining.len() == 2 {
             self.remaining = &self.remaining[2..];
-            return Some(Err(Utf8CharsError::new()));
+            return Some(Err(Utf8CharsError));
         }
         let third = self.remaining[2];
         if !in_inclusive_range8(third, 0x80, 0xBF) {
             self.remaining = &self.remaining[2..];
-            return Some(Err(Utf8CharsError::new()));
+            return Some(Err(Utf8CharsError));
         }
         if first < 0xF0 {
             self.remaining = &self.remaining[3..];
@@ -123,7 +115,7 @@ impl<'a> ErrorReportingUtf8Chars<'a> {
         // four-byte sequence that has to be incomplete, because
         // otherwise `next()` would have succeeded.
         self.remaining = &self.remaining[3..];
-        Some(Err(Utf8CharsError::new()))
+        Some(Err(Utf8CharsError))
     }
 }
 
@@ -214,7 +206,7 @@ impl<'a> DoubleEndedIterator for ErrorReportingUtf8Chars<'a> {
         }
 
         self.remaining = &self.remaining[..self.remaining.len() - 1];
-        Some(Err(Utf8CharsError::new()))
+        Some(Err(Utf8CharsError))
     }
 }
 
