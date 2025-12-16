@@ -11,3 +11,9 @@ homepage = "https://docs.rs/utf8_iter/"
 repository = "https://github.com/hsivonen/utf8_iter"
 keywords = ["encoding", "UTF-8", "unicode", "iterator"]
 categories = ["text-processing", "encoding", "internationalization"]
+
+[dependencies]
+icu_collections = { path = "../icu4x/components/collections", optional = true }
+
+[features]
+icu_collections = ["dep:icu_collections"]
