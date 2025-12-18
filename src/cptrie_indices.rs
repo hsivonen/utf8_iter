@@ -25,7 +25,7 @@ use icu_collections::codepointtrie::TrieValue;
 use icu_collections::codepointtrie::WithTrie;
 
 /// An iterator over the [`char`]s  and their positions.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 #[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct Utf8CharIndicesWithTrie<'slice, 'trie, T, V>
 where
@@ -36,11 +36,26 @@ where
     iter: Utf8CharsWithTrie<'slice, 'trie, T, V>,
 }
 
+impl<'slice, 'trie, T, V> Clone for Utf8CharIndicesWithTrie<'slice, 'trie, T, V>
+where
+    V: TrieValue,
+    T: AbstractCodePointTrie<'trie, V>,
+{
+    #[inline]
+    fn clone(&self) -> Self {
+        Self {
+            front_offset: self.front_offset,
+            iter: self.iter.clone(),
+        }
+    }
+}
+
 impl<'slice, 'trie, T, V> WithTrie<'trie, T, V> for Utf8CharIndicesWithTrie<'slice, 'trie, T, V>
 where
     V: TrieValue,
     T: AbstractCodePointTrie<'trie, V>,
 {
+    #[inline]
     fn trie(&self) -> &'trie T {
         self.iter.trie()
     }
