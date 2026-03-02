@@ -43,9 +43,15 @@ mod report;
 #[cfg(feature = "icu_collections")]
 pub use crate::cptrie::Utf8CharsWithTrie;
 #[cfg(feature = "icu_collections")]
+pub use crate::cptrie::Utf8CharsWithTrieDefaultForAscii;
+#[cfg(feature = "icu_collections")]
+pub use crate::cptrie::Utf8CharsWithTrieDefaultForAsciiEx;
+#[cfg(feature = "icu_collections")]
 pub use crate::cptrie::Utf8CharsWithTrieEx;
 #[cfg(feature = "icu_collections")]
 pub use crate::cptrie_indices::Utf8CharIndicesWithTrie;
+#[cfg(feature = "icu_collections")]
+pub use crate::cptrie_indices::Utf8CharIndicesWithTrieDefaultForAscii;
 pub use crate::indices::Utf8CharIndices;
 pub use crate::report::ErrorReportingUtf8Chars;
 pub use crate::report::Utf8CharsError;
