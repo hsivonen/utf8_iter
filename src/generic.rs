@@ -21,7 +21,7 @@ pub trait Utf8Action {
     ///
     /// # Safety
     ///
-    /// The caller must ensure `ascii` is in the range `00..=7F`.
+    /// The byte is guaranteed to be in the range `00..=7F`.
     unsafe fn handle_ascii(&mut self, ascii: u8) -> Self::Output;
 
     /// Called when a valid 2-byte UTF-8 sequence is encountered.
@@ -30,9 +30,8 @@ pub trait Utf8Action {
     ///
     /// # Safety
     ///
-    /// The caller must ensure `point` is a valid 2-byte UTF-8 sequence
-    /// (scalar values in the range `U+0080..=U+07FF`).
-    unsafe fn handle_2_byte(&mut self, point: u32) -> Self::Output;
+    /// The caller must ensure that `b1` and `b2` form a valid 2-byte UTF-8 sequence.
+    unsafe fn handle_2_byte(&mut self, b1: u8, b2: u8) -> Self::Output;
 
     /// Called when a valid 3-byte UTF-8 sequence is encountered.
     ///
@@ -42,16 +41,10 @@ pub trait Utf8Action {
     /// - `ED` followed by `80..=9F`, `80..=BF`
     /// - `EE..=EF` followed by `80..=BF`, `80..=BF`
     ///
-    /// A different way of looking at this is `E0 A0 BF` to `EF BF BF`
-    /// with continuation bytes always staying in the range `80..=BF`,
-    /// removing the surrogates in `ED A0 80` to `ED BF BF`.
-    ///
     /// # Safety
     ///
-    /// The caller must ensure `point` is a valid 3-byte UTF-8 sequence
-    /// (scalar values in the range `U+0800..=U+FFFF`,
-    /// excluding surrogates `U+D800..=U+DFFF`).
-    unsafe fn handle_3_byte(&mut self, point: u32) -> Self::Output;
+    /// The caller must ensure that `b1`, `b2`, and `b3` form a valid 3-byte UTF-8 sequence.
+    unsafe fn handle_3_byte(&mut self, b1: u8, b2: u8, b3: u8) -> Self::Output;
 
     /// Called when a valid 4-byte UTF-8 sequence is encountered.
     ///
@@ -60,14 +53,10 @@ pub trait Utf8Action {
     /// - `F1..=F3` followed by `80..=BF`, `80..=BF`, `80..=BF`
     /// - `F4` followed by `80..=8F`, `80..=BF`, `80..=BF`
     ///
-    /// A different way of looking at this is `F0 90 80 80` to `F4 8F BF BF`
-    /// with continuation bytes always staying in the range `80..=BF`.
-    ///
     /// # Safety
     ///
-    /// The caller must ensure `point` is a valid 2-byte UTF-8 sequence
-    /// (scalar values in the range `U+0080..=U+07FF`).
-    unsafe fn handle_4_byte(&mut self, point: u32) -> Self::Output;
+    /// The caller must ensure that `b1`, `b2`, `b3`, and `b4` form a valid 4-byte UTF-8 sequence.
+    unsafe fn handle_4_byte(&mut self, b1: u8, b2: u8, b3: u8, b4: u8) -> Self::Output;
 
     /// Called when an invalid sequence (error) is encountered.
     ///
@@ -79,7 +68,9 @@ pub trait Utf8Action {
         self.handle_error()
     }
 }
+
 /// A generic UTF-8 iterator that delegates to a `Utf8Action`.
+#[derive(Debug, Clone)]
 pub struct GenericUtf8Iter<'a, A> {
     pub(crate) remaining: &'a [u8],
     pub(crate) action: A,
@@ -104,7 +95,7 @@ impl<'a, A: Utf8Action> GenericUtf8Iter<'a, A> {
         let first = self.remaining[0];
         if first < 0x80 {
             self.remaining = &self.remaining[1..];
-            // SAFETY: `first` was just checked to be `< 0x80`.
+            // SAFETY: `first` was just checked to be `< 0x80`, which is the range for ASCII.
             return Some(unsafe { self.action.handle_ascii(first) });
         }
         if !in_inclusive_range8(first, 0xC2, 0xF4) || self.remaining.len() == 1 {
@@ -125,9 +116,11 @@ impl<'a, A: Utf8Action> GenericUtf8Iter<'a, A> {
         }
         if first < 0xE0 {
             self.remaining = &self.remaining[2..];
-            let point = ((u32::from(first) & 0x1F) << 6) | (u32::from(second) & 0x3F);
-            // SAFETY: `first` and `second` have been validated to form a correct 2-byte sequence.
-            return Some(unsafe { self.action.handle_2_byte(point) });
+            // SAFETY: `first` is in `C2..=DF` (due to the `in_inclusive_range8(first, 0xC2, 0xF4)`
+            // check above and the `first < 0xE0` check here) and `second` is in `80..=BF`
+            // (due to the `match first` and `in_inclusive_range8(second, lower_bound, upper_bound)`
+            // checks above), which together form a valid 2-byte UTF-8 sequence.
+            return Some(unsafe { self.action.handle_2_byte(first, second) });
         }
         if self.remaining.len() == 2 {
             self.remaining = &self.remaining[2..];
@@ -140,11 +133,11 @@ impl<'a, A: Utf8Action> GenericUtf8Iter<'a, A> {
         }
         if first < 0xF0 {
             self.remaining = &self.remaining[3..];
-            let point = ((u32::from(first) & 0xF) << 12)
-                | ((u32::from(second) & 0x3F) << 6)
-                | (u32::from(third) & 0x3F);
-            // SAFETY: `first`, `second`, and `third` have been validated to form a correct 3-byte sequence.
-            return Some(unsafe { self.action.handle_3_byte(point) });
+            // SAFETY: `first` is in `E0..=EF` (due to the `first < 0xE0` check failure and the
+            // `first < 0xF0` check here), `second` has been validated against `lower_bound`
+            // and `upper_bound` for this lead byte, and `third` is in `80..=BF`. Together
+            // these form a valid 3-byte UTF-8 sequence.
+            return Some(unsafe { self.action.handle_3_byte(first, second, third) });
         }
         // At this point, we have a valid 3-byte prefix of a
         // four-byte sequence that has to be incomplete.
@@ -166,7 +159,7 @@ impl<'a, A: Utf8Action> Iterator for GenericUtf8Iter<'a, A> {
             let first = self.remaining[0];
             if first < 0x80 {
                 self.remaining = &self.remaining[1..];
-                // SAFETY: `first` was just checked to be `< 0x80`.
+                // SAFETY: `first` was just checked to be `< 0x80`, which is the range for ASCII.
                 return Some(unsafe { self.action.handle_ascii(first) });
             }
             let second = self.remaining[1];
@@ -174,10 +167,10 @@ impl<'a, A: Utf8Action> Iterator for GenericUtf8Iter<'a, A> {
                 if !in_inclusive_range8(second, 0x80, 0xBF) {
                     break;
                 }
-                let point = ((u32::from(first) & 0x1F) << 6) | (u32::from(second) & 0x3F);
                 self.remaining = &self.remaining[2..];
-                // SAFETY: `first` and `second` have been validated to form a correct 2-byte sequence.
-                return Some(unsafe { self.action.handle_2_byte(point) });
+                // SAFETY: `first` is in `C2..=DF` and `second` is in `80..=BF`
+                // (checked immediately above), which together form a valid 2-byte UTF-8 sequence.
+                return Some(unsafe { self.action.handle_2_byte(first, second) });
             }
             let third = self.remaining[2];
             if first < 0xF0 {
@@ -188,12 +181,14 @@ impl<'a, A: Utf8Action> Iterator for GenericUtf8Iter<'a, A> {
                 {
                     break;
                 }
-                let point = ((u32::from(first) & 0xF) << 12)
-                    | ((u32::from(second) & 0x3F) << 6)
-                    | (u32::from(third) & 0x3F);
                 self.remaining = &self.remaining[3..];
-                // SAFETY: `first`, `second`, and `third` have been validated to form a correct 3-byte sequence.
-                return Some(unsafe { self.action.handle_3_byte(point) });
+                // SAFETY: `first` is in `E0..=EF` (due to the check failure for `first < 0x80`
+                // and `in_inclusive_range8(first, 0xC2, 0xDF)`, and the `first < 0xF0` check here).
+                // The table-based check against `UTF8_DATA.table` validates that `first` and
+                // `second` form a valid prefix for a 3-byte sequence (including overlong
+                // and surrogate checks), and `(third >> 6) == 2` validates that `third`
+                // is a continuation byte (`80..=BF`).
+                return Some(unsafe { self.action.handle_3_byte(first, second, third) });
             }
             let fourth = self.remaining[3];
             if (u16::from(
@@ -204,13 +199,14 @@ impl<'a, A: Utf8Action> Iterator for GenericUtf8Iter<'a, A> {
             {
                 break;
             }
-            let point = ((u32::from(first) & 0x7) << 18)
-                | ((u32::from(second) & 0x3F) << 12)
-                | ((u32::from(third) & 0x3F) << 6)
-                | (u32::from(fourth) & 0x3F);
             self.remaining = &self.remaining[4..];
-            // SAFETY: `first`, `second`, `third`, and `fourth` have been validated to form a correct 4-byte sequence.
-            return Some(unsafe { self.action.handle_4_byte(point) });
+            // SAFETY: `first` is in `F0..=F4` (due to the `first < 0xF0` check failure and the
+            // table-based check's implicit lead byte range). The table-based check validates
+            // that `first` and `second` form a valid prefix for a 4-byte sequence (including
+            // overlong and out-of-range checks), `(third >> 6) == 2` (implied by the `0x202`
+            // mask/check) validates that `third` is a continuation byte, and `(fourth & 0xC0) == 0x80`
+            // (also implied by the `0x202` mask/check) validates that `fourth` is a continuation byte.
+            return Some(unsafe { self.action.handle_4_byte(first, second, third, fourth) });
         }
         self.next_fallback()
     }
