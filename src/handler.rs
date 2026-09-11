@@ -19,7 +19,14 @@
 
 use core::iter::FusedIterator;
 
-use crate::helpers::*;
+use crate::helpers::below_four_byte;
+use crate::helpers::below_three_byte;
+use crate::helpers::multi_byte_lead;
+use crate::helpers::single_byte;
+use crate::helpers::three_byte_prefix;
+use crate::helpers::two_byte_lead;
+use crate::helpers::two_byte_prefix;
+use crate::helpers::unconstrained_continuation;
 
 /// Mapping from the four kinds of byte sequences or error
 /// to output.
@@ -210,7 +217,7 @@ where
 {
     type Item = H::Output;
 
-    #[inline(always)]
+    #[inline]
     fn next(&mut self) -> Option<H::Output> {
         // Not delegating directly to `ErrorReportingUtf8CharsWithHandler` to avoid
         // an extra branch in the common case based on a cursory inspection
