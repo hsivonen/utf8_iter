@@ -20,11 +20,6 @@ use core::fmt::Formatter;
 use core::iter::FusedIterator;
 
 /// A type for signaling UTF-8 errors.
-///
-/// Note: `core::error::Error` is not implemented due to implementing it
-/// being an [unstable feature][1] at the time of writing.
-///
-/// [1]: https://github.com/rust-lang/rust/issues/103765
 #[derive(Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Utf8CharsError;
@@ -34,6 +29,8 @@ impl core::fmt::Display for Utf8CharsError {
         write!(f, "byte sequence not well-formed UTF-8")
     }
 }
+
+impl core::error::Error for Utf8CharsError {}
 
 /// Iterator by `Result<char,Utf8CharsError>` over `&[u8]` that contains
 /// potentially-invalid UTF-8. There is exactly one `Utf8CharsError` per
