@@ -33,6 +33,7 @@
 //! assert_eq!(from_iter, from_std);
 //! ```
 
+pub mod helpers;
 mod indices;
 mod report;
 
