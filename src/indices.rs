@@ -34,7 +34,7 @@ where
 
 impl<'a, H> Iterator for Utf8CharIndicesWithHandler<'a, H>
 where
-    H: Utf8Handler,
+    H: Utf8Handler + Clone,
 {
     type Item = (usize, H::Output);
 
@@ -71,7 +71,7 @@ where
 
 impl<'a, H> DoubleEndedIterator for Utf8CharIndicesWithHandler<'a, H>
 where
-    H: Utf8Handler,
+    H: Utf8Handler + Clone,
 {
     #[inline]
     fn next_back(&mut self) -> Option<(usize, H::Output)> {

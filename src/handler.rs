@@ -30,7 +30,7 @@ use crate::helpers::unconstrained_continuation;
 
 /// Mapping from the four kinds of byte sequences or error
 /// to output.
-pub trait Utf8Handler: Clone {
+pub trait Utf8Handler {
     /// The per-scalar-value output type. (In the common case,
     /// this is `char`.)
     type Output;
@@ -120,7 +120,8 @@ pub trait Utf8Handler: Clone {
 }
 
 /// Iterator by `char` over `&[u8]` that contains
-/// potentially-invalid UTF-8. See the crate documentation.
+/// potentially-invalid UTF-8 with a handler for the four
+/// kinds of byte sequences (or error). See the crate documentation.
 #[derive(Debug, Clone)]
 pub struct Utf8CharsWithHandler<'a, H>
 where
@@ -219,12 +220,6 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<H::Output> {
-        // Not delegating directly to `ErrorReportingUtf8CharsWithHandler` to avoid
-        // an extra branch in the common case based on a cursory inspection
-        // of generated code in a similar case. Be sure to inspect the
-        // generated code as inlined into an actual usage site carefully
-        // if attempting to consolidate the source code here.
-
         // This loop is only broken out of as goto forward
         #[allow(clippy::never_loop)]
         loop {
@@ -279,7 +274,7 @@ where
 
 impl<'a, H> DoubleEndedIterator for Utf8CharsWithHandler<'a, H>
 where
-    H: Utf8Handler,
+    H: Utf8Handler + Clone,
 {
     #[inline]
     fn next_back(&mut self) -> Option<H::Output> {
