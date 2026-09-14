@@ -17,22 +17,29 @@
 // <http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
 // <LICENSE-MIT> or <http://opensource.org/licenses/MIT>, at your option.
 
-use super::Utf8Chars;
+use crate::Utf8CharsWithHandler;
+use crate::Utf8Handler;
 use core::iter::FusedIterator;
 
 /// An iterator over the [`char`]s  and their positions.
 #[derive(Clone, Debug)]
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub struct Utf8CharIndices<'a> {
+pub struct Utf8CharIndicesWithHandler<'a, H>
+where
+    H: Utf8Handler,
+{
     front_offset: usize,
-    iter: Utf8Chars<'a>,
+    iter: Utf8CharsWithHandler<'a, H>,
 }
 
-impl<'a> Iterator for Utf8CharIndices<'a> {
-    type Item = (usize, char);
+impl<'a, H> Iterator for Utf8CharIndicesWithHandler<'a, H>
+where
+    H: Utf8Handler,
+{
+    type Item = (usize, H::Output);
 
     #[inline]
-    fn next(&mut self) -> Option<(usize, char)> {
+    fn next(&mut self) -> Option<(usize, H::Output)> {
         let pre_len = self.as_slice().len();
         match self.iter.next() {
             None => None,
@@ -56,15 +63,18 @@ impl<'a> Iterator for Utf8CharIndices<'a> {
     }
 
     #[inline]
-    fn last(mut self) -> Option<(usize, char)> {
+    fn last(mut self) -> Option<(usize, H::Output)> {
         // No need to go through the entire string.
         self.next_back()
     }
 }
 
-impl<'a> DoubleEndedIterator for Utf8CharIndices<'a> {
+impl<'a, H> DoubleEndedIterator for Utf8CharIndicesWithHandler<'a, H>
+where
+    H: Utf8Handler,
+{
     #[inline]
-    fn next_back(&mut self) -> Option<(usize, char)> {
+    fn next_back(&mut self) -> Option<(usize, H::Output)> {
         self.iter.next_back().map(|ch| {
             let index = self.front_offset + self.as_slice().len();
             (index, ch)
@@ -72,15 +82,18 @@ impl<'a> DoubleEndedIterator for Utf8CharIndices<'a> {
     }
 }
 
-impl FusedIterator for Utf8CharIndices<'_> {}
+impl<H> FusedIterator for Utf8CharIndicesWithHandler<'_, H> where H: Utf8Handler + Clone {}
 
-impl<'a> Utf8CharIndices<'a> {
+impl<'a, H> Utf8CharIndicesWithHandler<'a, H>
+where
+    H: Utf8Handler,
+{
     #[inline(always)]
-    /// Creates the iterator from a byte slice.
-    pub fn new(bytes: &'a [u8]) -> Self {
-        Utf8CharIndices::<'a> {
+    /// Creates the iterator from a byte slice and handler.
+    pub fn new(bytes: &'a [u8], handler: H) -> Self {
+        Utf8CharIndicesWithHandler::<'a> {
             front_offset: 0,
-            iter: Utf8Chars::new(bytes),
+            iter: Utf8CharsWithHandler::new(bytes, handler),
         }
     }
 

@@ -14,38 +14,24 @@
 // See the Licenses for the specific language governing permissions and
 // limitations under the Licenses.
 
-use crate::Utf8Handler;
-use core::fmt::Formatter;
-
 use crate::helpers::four_bytes_to_char;
 use crate::helpers::three_bytes_to_char;
 use crate::helpers::two_bytes_to_char;
 
-/// A type for signaling UTF-8 errors.
-#[derive(Debug, PartialEq)]
-#[non_exhaustive]
-pub struct Utf8CharsError;
+use crate::Utf8Handler;
 
-impl core::fmt::Display for Utf8CharsError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
-        write!(f, "byte sequence not well-formed UTF-8")
-    }
-}
-
-impl core::error::Error for Utf8CharsError {}
-
-/// The `Output = Result<char, Utf8CharsError>` case.
+/// The basic `Output = char` case.
 #[derive(Debug, Clone)]
-pub(crate) struct ErrorReportingHandler;
+pub(crate) struct DefaultHandler;
 
-impl ErrorReportingHandler {
+impl DefaultHandler {
     pub(crate) fn new() -> Self {
         Self {}
     }
 }
 
-impl Utf8Handler for ErrorReportingHandler {
-    type Output = Result<char, Utf8CharsError>;
+impl Utf8Handler for DefaultHandler {
+    type Output = char;
 
     /// Map a single-byte UTF-8 sequence to `Output`.
     ///
@@ -63,7 +49,7 @@ impl Utf8Handler for ErrorReportingHandler {
     /// invariant without checking it on release builds.
     #[inline(always)]
     unsafe fn single_byte(&self, ascii: u8) -> Self::Output {
-        Ok(char::from(ascii))
+        char::from(ascii)
     }
 
     /// Map a two-byte UTF-8 sequence to `Output`.
@@ -84,7 +70,7 @@ impl Utf8Handler for ErrorReportingHandler {
     /// invariant without checking it on release builds.
     #[inline(always)]
     unsafe fn two_byte(&self, first: u8, second: u8) -> Self::Output {
-        Ok(two_bytes_to_char(first, second))
+        two_bytes_to_char(first, second)
     }
 
     /// Map a three-byte UTF-8 sequence to `Output`.
@@ -107,7 +93,7 @@ impl Utf8Handler for ErrorReportingHandler {
     unsafe fn three_byte(&self, first: u8, second: u8, third: u8) -> Self::Output {
         // SAFETY: We rely on the safety invariant of this method to hold.
         // The safety invariant of `three_bytes_to_char` is the same invariant.
-        Ok(unsafe { three_bytes_to_char(first, second, third) })
+        unsafe { three_bytes_to_char(first, second, third) }
     }
 
     /// Map a four-byte UTF-8 sequence to `Output`.
@@ -130,7 +116,7 @@ impl Utf8Handler for ErrorReportingHandler {
     unsafe fn four_byte(&self, first: u8, second: u8, third: u8, fourth: u8) -> Self::Output {
         // SAFETY: We rely on the safety invariant of this method to hold.
         // The safety invariant of `four_bytes_to_char` is the same invariant.
-        Ok(unsafe { four_bytes_to_char(first, second, third, fourth) })
+        unsafe { four_bytes_to_char(first, second, third, fourth) }
     }
 
     /// Map a singe UTF-8 error to `Output`.
@@ -146,48 +132,44 @@ impl Utf8Handler for ErrorReportingHandler {
     /// be declared `#[inline(always)]`.
     #[inline(always)]
     fn error(&self) -> Self::Output {
-        Err(Utf8CharsError)
+        char::REPLACEMENT_CHARACTER
     }
 }
 
 crate::macros::named_iterators_from_no_argument_handler!(
-    ErrorReportingHandler,
-    Result<char, Utf8CharsError>,
-    /// Iterator by `Result<char,Utf8CharsError>` over `&[u8]` that contains
-    /// potentially-invalid UTF-8. There is exactly one `Utf8CharsError` per
-    /// each error as defined by the WHATWG Encoding Standard.
-    ///
-    /// ```
-    /// let s = b"a\xFFb\xFF\x80c\xF0\x9F\xA4\xA6\xF0\x9F\xA4\xF0\x9F\xF0d";
-    /// let plain = utf8_iter::Utf8Chars::new(s);
-    /// let reporting = utf8_iter::ErrorReportingUtf8Chars::new(s);
-    /// assert!(plain.eq(reporting.map(|r| r.unwrap_or('\u{FFFD}'))));
-    /// ```
+    DefaultHandler,
+    char,
+    /// Iterator by `char` over `&[u8]` that contains
+    /// potentially-invalid UTF-8. See the crate documentation.
     ,
-    ErrorReportingUtf8Chars,
+    Utf8Chars,
     /// Iterator by `char` and their indices over `&[u8]` that contains
     /// potentially-invalid UTF-8. See the crate documentation.
     ,
-    ErrorReportingUtf8CharIndices,
+    Utf8CharIndices,
 );
 
-#[cfg(test)]
-mod tests {
-    use crate::ErrorReportingUtf8Chars;
+/// Convenience trait that adds `chars()` and `char_indices()` methods
+/// similar to the ones on string slices to byte slices.
+pub trait Utf8CharsEx {
+    fn chars(&self) -> Utf8Chars<'_>;
+    fn char_indices(&self) -> Utf8CharIndices<'_>;
+}
 
-    // Should be a static assert, but not taking a dependency for this.
-    #[test]
-    fn test_size() {
-        assert_eq!(
-            core::mem::size_of::<Option<<ErrorReportingUtf8Chars<'_> as Iterator>::Item>>(),
-            core::mem::size_of::<Option<char>>()
-        );
+impl Utf8CharsEx for [u8] {
+    /// Convenience method for creating an UTF-8 iterator
+    /// for the slice.
+    #[inline]
+    fn chars(&self) -> Utf8Chars<'_> {
+        Utf8Chars::new(self)
     }
-
-    #[test]
-    fn test_eq() {
-        let a: <ErrorReportingUtf8Chars<'_> as Iterator>::Item = Ok('a');
-        let a_again: <ErrorReportingUtf8Chars<'_> as Iterator>::Item = Ok('a');
-        assert_eq!(a, a_again);
+    /// Convenience method for creating a byte index and
+    /// UTF-8 iterator for the slice.
+    #[inline]
+    fn char_indices(&self) -> Utf8CharIndices<'_> {
+        Utf8CharIndices::new(self)
     }
 }
+
+// No manually-written tests for forward-iteration, because the code passed multiple
+// days of fuzzing comparing with known-good behavior.

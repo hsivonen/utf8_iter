@@ -30,7 +30,7 @@ use crate::helpers::unconstrained_continuation;
 
 /// Mapping from the four kinds of byte sequences or error
 /// to output.
-pub trait Utf8Handler {
+pub trait Utf8Handler: Clone {
     /// The per-scalar-value output type. (In the common case,
     /// this is `char`.)
     type Output;
@@ -135,7 +135,7 @@ where
     H: Utf8Handler,
 {
     #[inline(always)]
-    /// Creates the iterator from a byte slice.
+    /// Creates the iterator from a byte slice and handler.
     pub fn new(bytes: &'a [u8], handler: H) -> Self {
         Utf8CharsWithHandler::<'a, H> {
             remaining: bytes,
@@ -279,7 +279,7 @@ where
 
 impl<'a, H> DoubleEndedIterator for Utf8CharsWithHandler<'a, H>
 where
-    H: Utf8Handler + Clone,
+    H: Utf8Handler,
 {
     #[inline]
     fn next_back(&mut self) -> Option<H::Output> {
