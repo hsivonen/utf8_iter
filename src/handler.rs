@@ -288,7 +288,7 @@ where
         }
         let mut attempt = 1;
         for b in self.remaining.iter().rev() {
-            if b & 0xC0 != 0x80 {
+            if !unconstrained_continuation(*b) {
                 let (head, tail) = self.remaining.split_at(self.remaining.len() - attempt);
                 let mut inner = Utf8CharsWithHandler {
                     remaining: tail,
