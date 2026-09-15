@@ -34,6 +34,12 @@ online.
 
 ## Release Notes
 
+### 1.1.0
+
+* Increase MSRV to 1.81 (for `core::error::Error`)
+* Reformulate the crate in terms of a pluggable handler trait.
+* Provide a `helpers` module with UTF-8 decoder/validator building blocks.
+
 ### 1.0.4
 
 * Add iteration by `Result<char,Utf8CharsError>`.

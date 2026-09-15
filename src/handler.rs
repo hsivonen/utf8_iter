@@ -105,18 +105,26 @@ pub trait Utf8Handler {
     /// invariant without checking it on release builds.
     unsafe fn four_byte(&self, first: u8, second: u8, third: u8, fourth: u8) -> Self::Output;
 
-    /// Map a singe UTF-8 error to `Output`.
+    /// Map a single UTF-8 error to `Output`.
     ///
     /// What constitutes a single error is defined by the
     /// WHATWG Encoding Standard.
     ///
     /// When `Output` is `char`,
     /// `char::REPLACEMENT_CHARACTER`
-    /// is the appropriate implementation.
+    /// is the appropriate implementation. The provided
+    /// implementation delegates to `three_byte` by
+    /// passing the three bytes that represent the
+    /// REPLACEMENT CHARACTER.
     ///
     /// The implementation of this method is expected to
     /// be declared `#[inline(always)]`.
-    fn error(&self) -> Self::Output;
+    #[inline(always)]
+    fn error(&self) -> Self::Output {
+        // SAFETY: These bytes are statically known to form
+        // a well-formed UTF-8 sequence.
+        unsafe { self.three_byte(0xEF, 0xBF, 0xBD) }
+    }
 }
 
 /// Iterator by `char` over `&[u8]` that contains
@@ -149,6 +157,12 @@ where
     #[inline(always)]
     pub fn as_slice(&self) -> &'a [u8] {
         self.remaining
+    }
+
+    /// Obtains a reference to the handler.
+    #[inline(always)]
+    pub fn handler(&self) -> &H {
+        &self.handler
     }
 
     #[cold]
@@ -250,6 +264,7 @@ where
                 break;
             }
             if below_four_byte(first) {
+                self.remaining = &self.remaining[3..];
                 // SAFETY: We checked the invariant of
                 // `self.handler.three_byte` with the combination of
                 // `single_byte(first)`, `two_byte_lead(first)`,
@@ -281,8 +296,7 @@ where
         if self.remaining.is_empty() {
             return None;
         }
-        let mut attempt = 1;
-        for b in self.remaining.iter().rev() {
+        for (attempt, b) in (1..).zip(self.remaining.iter().rev()) {
             if !unconstrained_continuation(*b) {
                 let (head, tail) = self.remaining.split_at(self.remaining.len() - attempt);
                 let mut inner = Utf8CharsWithHandler {
@@ -299,7 +313,6 @@ where
             if attempt == 4 {
                 break;
             }
-            attempt += 1;
         }
 
         self.remaining = &self.remaining[..self.remaining.len() - 1];

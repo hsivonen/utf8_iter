@@ -17,6 +17,7 @@
 // <http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
 // <LICENSE-MIT> or <http://opensource.org/licenses/MIT>, at your option.
 
+use crate::CharsWithHandler;
 use crate::Utf8CharsWithHandler;
 use crate::Utf8Handler;
 use core::iter::FusedIterator;
@@ -105,6 +106,125 @@ where
     #[inline]
     pub fn as_slice(&self) -> &'a [u8] {
         self.iter.as_slice()
+    }
+
+    /// Obtains a reference to the handler.
+    #[inline(always)]
+    pub fn handler(&self) -> &H {
+        self.iter.handler()
+    }
+
+    /// Returns the byte position of the next character, or the length
+    /// of the underlying string if there are no more characters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use utf8_iter::Utf8CharsEx;
+    /// let mut chars = "a楽".as_bytes().char_indices();
+    ///
+    /// assert_eq!(chars.offset(), 0);
+    /// assert_eq!(chars.next(), Some((0, 'a')));
+    ///
+    /// assert_eq!(chars.offset(), 1);
+    /// assert_eq!(chars.next(), Some((1, '楽')));
+    ///
+    /// assert_eq!(chars.offset(), 4);
+    /// assert_eq!(chars.next(), None);
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn offset(&self) -> usize {
+        self.front_offset
+    }
+}
+
+// ---
+
+/// An iterator over the [`char`]s  and their positions.
+#[derive(Clone, Debug)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
+pub struct CharIndicesWithHandler<'a, H>
+where
+    H: Utf8Handler,
+{
+    front_offset: usize,
+    iter: CharsWithHandler<'a, H>,
+}
+
+impl<'a, H> Iterator for CharIndicesWithHandler<'a, H>
+where
+    H: Utf8Handler,
+{
+    type Item = (usize, H::Output);
+
+    #[inline]
+    fn next(&mut self) -> Option<(usize, H::Output)> {
+        let pre_len = self.as_str().len();
+        match self.iter.next() {
+            None => None,
+            Some(ch) => {
+                let index = self.front_offset;
+                let len = self.as_str().len();
+                self.front_offset += pre_len - len;
+                Some((index, ch))
+            }
+        }
+    }
+
+    #[inline]
+    fn count(self) -> usize {
+        self.iter.count()
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+}
+
+impl<'a, H> DoubleEndedIterator for CharIndicesWithHandler<'a, H>
+where
+    H: Utf8Handler,
+{
+    #[inline]
+    fn next_back(&mut self) -> Option<(usize, H::Output)> {
+        self.iter.next_back().map(|ch| {
+            let index = self.front_offset + self.as_str().len();
+            (index, ch)
+        })
+    }
+}
+
+impl<H> FusedIterator for CharIndicesWithHandler<'_, H> where H: Utf8Handler {}
+
+impl<'a, H> CharIndicesWithHandler<'a, H>
+where
+    H: Utf8Handler,
+{
+    #[inline(always)]
+    /// Creates the iterator from a `&str` and handler.
+    pub fn new(s: &'a str, handler: H) -> Self {
+        CharIndicesWithHandler::<'a> {
+            front_offset: 0,
+            iter: CharsWithHandler::new(s, handler),
+        }
+    }
+
+    /// Views the underlying data as a subslice of the original data.
+    ///
+    /// This has the same lifetime as the original slice, and so the
+    /// iterator can continue to be used while this exists.
+    #[must_use]
+    #[inline]
+    pub fn as_str(&self) -> &'a str {
+        self.iter.as_str()
+    }
+
+    /// Obtains a reference to the handler.
+    #[inline(always)]
+    pub fn handler(&self) -> &H {
+        self.iter.handler()
     }
 
     /// Returns the byte position of the next character, or the length

@@ -47,6 +47,7 @@ pub use crate::basic::Utf8Chars;
 pub use crate::basic::Utf8CharsEx;
 pub use crate::handler::Utf8CharsWithHandler;
 pub use crate::handler::Utf8Handler;
+pub use crate::indices::CharIndicesWithHandler;
 pub use crate::indices::Utf8CharIndicesWithHandler;
 pub use crate::report::ErrorReportingUtf8CharIndices;
 pub use crate::report::ErrorReportingUtf8Chars;

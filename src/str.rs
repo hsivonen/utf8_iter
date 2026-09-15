@@ -22,7 +22,7 @@ use crate::Utf8Handler;
 
 /// Iterator over guaranteed-well-formed UTF-8 with `Utf8Handler`.
 /// The `Utf8Handler::error()` is, of course, never called.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CharsWithHandler<'a, H>
 where
     H: Utf8Handler,
@@ -55,6 +55,24 @@ where
     pub fn as_str(&self) -> &'a str {
         // SAFETY: OK per the safety-usable invariant of `self.inner`.
         unsafe { core::str::from_utf8_unchecked(self.inner.as_slice()) }
+    }
+
+    /// Obtains a reference to the handler.
+    #[inline(always)]
+    pub fn handler(&self) -> &H {
+        &self.handler
+    }
+}
+
+impl<'a, H> Clone for CharsWithHandler<'a, H>
+where
+    H: Utf8Handler + Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            handler: self.handler.clone(),
+        }
     }
 }
 
