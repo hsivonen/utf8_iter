@@ -112,6 +112,43 @@ pub fn single_byte(first: u8) -> bool {
     first < 0x80
 }
 
+/// Type-safe wrapper for a lead byte for multi-byte
+/// UTF-8 sequence.
+#[derive(Debug, Copy, Clone)]
+#[repr(transparent)]
+pub struct MultiByteLead {
+    inner: u8,
+}
+
+impl MultiByteLead {
+    /// Contructs a new `MultiByteLead` if `byte` is
+    /// valid is the lead byte of a multi-byte UTF-8
+    /// sequence. (Returns `None` otherwise.)
+    #[inline(always)]
+    pub fn try_new(byte: u8) -> Option<Self> {
+        if multi_byte_lead(byte) {
+            Some(Self { inner: byte })
+        } else {
+            None
+        }
+    }
+
+    /// Returns `MultiByteLead` representing the smallest
+    /// possible lead byte for a multi-byte sequence
+    #[inline(always)]
+    pub fn new_with_minimum() -> Self {
+        Self { inner: 0xC2 }
+    }
+
+    /// Obtain the wrapped byte, which is guaranteed to
+    /// be valid as a lead byte for a multi-byte UTF-8
+    /// sequence.
+    #[inline(always)]
+    pub fn get(&self) -> u8 {
+        self.inner
+    }
+}
+
 /// `true` iff `first` is a valid lead byte for a multi-byte
 /// sequence.
 #[inline(always)]

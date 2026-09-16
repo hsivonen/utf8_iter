@@ -29,9 +29,9 @@ where
 {
     /// # Safety-usable invariant
     ///
-    /// When entering a `next` or `next_back` call, this slice
-    /// is well-formed UTF-8, and when those methods return, this
-    /// is again well-formed UTF-8.
+    /// When entering a `next`, `next_back`, or `next_with_passthrough_bound`
+    /// call, this slice is well-formed UTF-8, and when those methods return,
+    /// this is again well-formed UTF-8.
     inner: core::slice::Iter<'a, u8>,
     handler: H,
 }
@@ -61,6 +61,108 @@ where
     #[inline(always)]
     pub fn handler(&self) -> &H {
         &self.handler
+    }
+
+    /// Obtains the output for the next UTF-8 sequence whose lead byte
+    /// is greater than or equal to `multi_byte_lead` ignoring UTF-8
+    /// sequences before such a UTF-8 sequence. (Or `None` if the iterator
+    /// is consumed without finding such a UTF-8 sequence.)
+    #[inline(always)]
+    pub fn next_with_minimum_lead(
+        &mut self,
+        multi_byte_lead: crate::helpers::MultiByteLead,
+    ) -> Option<H::Output> {
+        let bound = multi_byte_lead.get();
+        loop {
+            let byte = *self.inner.next()?;
+            if byte < bound {
+                continue;
+            }
+            // SAFETY: From the safety-usable invariant of `self.inner`
+            // we know that upon entry into this method `self.inner`
+            // represented well-formed UTF-8.
+            //
+            // We know that well-formed UTF-8 consists of three kinds
+            // of bytes:
+            // 1. ASCII bytes
+            // 2. Continuation bytes
+            // 3. Lead bytes for multi-byte sequences.
+            //
+            // We know that ASCII bytes and continuation bytes are
+            // below lead bytes for multi-byte sequences in unsigned
+            // integer order.
+            //
+            // Since `bound` is a lead byte for a multi-byte sequence,
+            // we know that ASCII bytes and continuation bytes take
+            // the `continue` path above.
+            //
+            // Therefore, we know that `byte` must now be a lead byte
+            // for a multibyte sequence. Since we know that `self.inner`
+            // represented well-formed UTF-8 upon entry into this method,
+            // we know that `self.inner` will yield the continuation bytes
+            // that are appropriate given `byte` as the lead byte for
+            // a multibyte sequence.
+            //
+            // INVARIANT UPHELD for `self.inner`:
+            // `consume_continuations` consumes the rest of the
+            // multi-byte UTF-8 sequence causing a complete sequence
+            // to be consumed.
+            return Some(unsafe { self.consume_continuations(byte) });
+        }
+    }
+
+    /// Consumes continuations given multi-byte lead byte `first`.
+    ///
+    /// # Safety
+    ///
+    /// `first` must be a lead byte for a multi-byte UTF-8 sequence that
+    /// was obtained from `self.inner.next()` and `self.inner` has not
+    /// been modified between that call and the call to this method.
+    #[inline(always)]
+    unsafe fn consume_continuations(&mut self, first: u8) -> H::Output {
+        // SAFETY: Since we don't have a single-byte sequence (per the
+        // safety invariant of this method) and we know `self.inner`
+        // represented well-formed UTF-8 when `first` was obtained,
+        // we know that the second byte exists.
+        let second = *unsafe { self.inner.next().unwrap_unchecked() };
+        if below_three_byte(first) {
+            // SAFETY: We checked the invariant of
+            // `self.handler.two_byte` with `below_three_byte(first)` given
+            // given the safety invariant of this method.
+            //
+            // INVARIANT UPHELD for `self.inner`:
+            // We consumed a complete UTF-8 sequence.
+            return unsafe { self.handler.two_byte(first, second) };
+        }
+        // SAFETY: Since we don't have a single-byte sequence or a two-byte
+        // sequence (per above) and we know `self.inner` represented
+        // well-formed UTF-8 when `first` was obtained, we know that
+        // the third byte exists.
+        let third = *unsafe { self.inner.next().unwrap_unchecked() };
+        if below_four_byte(first) {
+            // SAFETY: We checked the invariant of
+            // `self.handler.three_byte` with the combination of
+            // `below_three_byte(first)`, and
+            // `below_four_byte(first)` given given
+            // given the safety invariant of this method.
+            //
+            // INVARIANT UPHELD for `self.inner`:
+            // We consumed a complete UTF-8 sequence.
+            return unsafe { self.handler.three_byte(first, second, third) };
+        }
+        // SAFETY: Since we don't have a single-byte sequence, a two-byte
+        // sequence, or a three-byte sequence (per above) and we know
+        // `self.inner` represented well-formed UTF-8 when `first` was
+        // obtained, we know that the fourth byte exists.
+        let fourth = *unsafe { self.inner.next().unwrap_unchecked() };
+        // SAFETY: We checked the invariant of
+        // `self.handler.four_byte` by having
+        // ruled out the three other sequence types given the safety
+        // invariant of this method.
+        //
+        // INVARIANT UPHELD for `self.inner`:
+        // We consumed a complete UTF-8 sequence.
+        unsafe { self.handler.four_byte(first, second, third, fourth) }
     }
 }
 
@@ -94,50 +196,16 @@ where
             // We consumed a complete UTF-8 sequence.
             return Some(unsafe { self.handler.single_byte(first) });
         }
-        // SAFETY: Since we don't have a single-byte sequence (per above)
-        // and we know `self.inner` represented well-formed UTF-8 upon
-        // entry into this method, we know that the second byte exists.
-        let second = *unsafe { self.inner.next().unwrap_unchecked() };
-        if below_three_byte(first) {
-            // SAFETY: We checked the invariant of
-            // `self.handler.two_byte` with the combination of
-            // `single_byte(first)` and `below_three_byte(first)` given
-            // that `self.inner` represented well-formed UTF-8 upon
-            // entry into this method.
-            //
-            // INVARIANT UPHELD for `self.inner`:
-            // We consumed a complete UTF-8 sequence.
-            return Some(unsafe { self.handler.two_byte(first, second) });
-        }
-        // SAFETY: Since we don't have a single-byte sequence or a two-byte
-        // sequence (per above) and we know `self.inner` represented
-        // well-formed UTF-8 upon entry into this method, we know that
-        // the third byte exists.
-        let third = *unsafe { self.inner.next().unwrap_unchecked() };
-        if below_four_byte(first) {
-            // SAFETY: We checked the invariant of
-            // `self.handler.two_byte` with the combination of
-            // `single_byte(first)`, `below_three_byte(first)`, and
-            // `below_four_byte(first)` given that `self.inner`
-            // represented well-formed UTF-8 upon entry into this method.
-            //
-            // INVARIANT UPHELD for `self.inner`:
-            // We consumed a complete UTF-8 sequence.
-            return Some(unsafe { self.handler.three_byte(first, second, third) });
-        }
-        // SAFETY: Since we don't have a single-byte sequence, a two-byte
-        // sequence, or a three-byte sequence (per above) and we know
-        // `self.inner` represented well-formed UTF-8 upon entry into this
-        // method, we know that the fourth byte exists.
-        let fourth = *unsafe { self.inner.next().unwrap_unchecked() };
-        // SAFETY: We checked the invariant of
-        // `self.handler.four_byte` given that `self.inner` represented
-        // well-formed UTF-8 upon entry into this method by having
-        // ruled out the three other sequence types.
+        // SAFETY: Since `self.inner` represented well-formed UTF-8
+        // upon entry into this method and `first` is not ASCII,
+        // first must be a valid lead byte for a multi-byte UTF-8
+        // sequence.
         //
         // INVARIANT UPHELD for `self.inner`:
-        // We consumed a complete UTF-8 sequence.
-        Some(unsafe { self.handler.four_byte(first, second, third, fourth) })
+        // `consume_continuations` consumes the rest of the
+        // multi-byte UTF-8 sequence causing a complete sequence
+        // to be consumed.
+        Some(unsafe { self.consume_continuations(first) })
     }
 }
 
