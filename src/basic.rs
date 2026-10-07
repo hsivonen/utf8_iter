@@ -14,6 +14,12 @@
 // See the Licenses for the specific language governing permissions and
 // limitations under the Licenses.
 
+use utf_types::utf8::Ascii;
+use utf_types::utf8::FourByteSequence;
+use utf_types::utf8::ThreeByteSequence;
+use utf_types::utf8::TwoByteSequence;
+use utf_types::utf8::Utf8ByteSequence;
+
 use crate::helpers::four_bytes_to_char;
 use crate::helpers::three_bytes_to_char;
 use crate::helpers::two_bytes_to_char;
@@ -35,88 +41,50 @@ impl Utf8Handler for DefaultHandler {
 
     /// Map a single-byte UTF-8 sequence to `Output`.
     ///
-    /// When `Output` is `char`, `char::from(ascii)`
+    /// When `Output` is `char`, `ascii.to_char()`
     /// is the appropriate implementation.
     ///
-    /// # Safety
-    ///
-    /// The caller must guarantee that `ascii` is
-    /// below 0x80. The callers in `utf8_iter` guarantee
-    /// this, but this is `unsafe` in case the trait
-    /// implementation is used with other callers. The
-    /// implementation of this method is expected to be
-    /// declared `#[inline(always)]` and to rely on this
-    /// invariant without checking it on release builds.
+    /// The implementation is expected to be marked
+    /// `#[inline(always)]`.
     #[inline(always)]
-    unsafe fn single_byte(&self, ascii: u8) -> Self::Output {
-        char::from(ascii)
+    fn single_byte(&self, ascii: Ascii) -> Self::Output {
+        ascii.to_char()
     }
 
     /// Map a two-byte UTF-8 sequence to `Output`.
     ///
-    /// When `Output` is `char`,
-    /// `two_bytes_to_char(first, second)`
+    /// When `Output` is `char`, `sequence.to_char()`
     /// is the appropriate implementation.
     ///
-    /// # Safety
-    ///
-    /// The caller must guarantee that `first` and `second`
-    /// form a valid two-byte UTF-8 sequence.
-    /// The callers in `utf8_iter` guarantee
-    /// this, but this is `unsafe` in case the trait
-    /// implementation is used with other callers. The
-    /// implementation of this method is expected to be
-    /// declared `#[inline(always)]` and to rely on this
-    /// invariant without checking it on release builds.
+    /// The implementation is expected to be marked
+    /// `#[inline(always)]`.
     #[inline(always)]
-    unsafe fn two_byte(&self, first: u8, second: u8) -> Self::Output {
-        two_bytes_to_char(first, second)
+    fn two_byte(&self, sequence: TwoByteSequence) -> Self::Output {
+        sequence.to_char()
     }
 
     /// Map a three-byte UTF-8 sequence to `Output`.
     ///
-    /// When `Output` is `char`,
-    /// `three_bytes_to_char(first, second, third)`
+    /// When `Output` is `char`, `sequence.to_char()`
     /// is the appropriate implementation.
     ///
-    /// # Safety
-    ///
-    /// The caller must guarantee that `first`, `second`,
-    /// and `third` form a valid three-byte UTF-8 sequence.
-    /// The callers in `utf8_iter` guarantee
-    /// this, but this is `unsafe` in case the trait
-    /// implementation is used with other callers. The
-    /// implementation of this method is expected to be
-    /// declared `#[inline(always)]` and to rely on this
-    /// invariant without checking it on release builds.
+    /// The implementation is expected to be marked
+    /// `#[inline(always)]`.
     #[inline(always)]
-    unsafe fn three_byte(&self, first: u8, second: u8, third: u8) -> Self::Output {
-        // SAFETY: We rely on the safety invariant of this method to hold.
-        // The safety invariant of `three_bytes_to_char` is the same invariant.
-        unsafe { three_bytes_to_char(first, second, third) }
+    fn three_byte(&self, sequence: ThreeByteSequence) -> Self::Output {
+        sequence.to_char()
     }
 
     /// Map a four-byte UTF-8 sequence to `Output`.
     ///
-    /// When `Output` is `char`,
-    /// `unsafe { four_bytes_to_char(first, second, third, fourth) }`
+    /// When `Output` is `char`, `sequence.to_char()`
     /// is the appropriate implementation.
     ///
-    /// # Safety
-    ///
-    /// The caller must guarantee that `first`, `second`,
-    /// `third`, and `fourth` form a valid four-byte UTF-8 sequence.
-    /// The callers in `utf8_iter` guarantee
-    /// this, but this is `unsafe` in case the trait
-    /// implementation is used with other callers. The
-    /// implementation of this method is expected to be
-    /// declared `#[inline(always)]` and to rely on this
-    /// invariant without checking it on release builds.
+    /// The implementation is expected to be marked
+    /// `#[inline(always)]`.
     #[inline(always)]
-    unsafe fn four_byte(&self, first: u8, second: u8, third: u8, fourth: u8) -> Self::Output {
-        // SAFETY: We rely on the safety invariant of this method to hold.
-        // The safety invariant of `four_bytes_to_char` is the same invariant.
-        unsafe { four_bytes_to_char(first, second, third, fourth) }
+    fn four_byte(&self, sequence: FourByteSequence) -> Self::Output {
+        sequence.to_char()
     }
 
     /// Map a singe UTF-8 error to `Output`.

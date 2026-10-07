@@ -28,6 +28,11 @@ use crate::helpers::two_byte_lead;
 use crate::helpers::two_byte_prefix;
 use crate::helpers::unconstrained_continuation;
 
+use utf_types::utf8::Ascii;
+use utf_types::utf8::FourByteSequence;
+use utf_types::utf8::ThreeByteSequence;
+use utf_types::utf8::TwoByteSequence;
+
 /// Mapping from the four kinds of byte sequences or error
 /// to output.
 pub trait Utf8Handler {
@@ -37,73 +42,39 @@ pub trait Utf8Handler {
 
     /// Map a single-byte UTF-8 sequence to `Output`.
     ///
-    /// When `Output` is `char`, `char::from(ascii)`
+    /// When `Output` is `char`, `ascii.to_char()`
     /// is the appropriate implementation.
     ///
-    /// # Safety
-    ///
-    /// The caller must guarantee that `ascii` is
-    /// below 0x80. The callers in `utf8_iter` guarantee
-    /// this, but this is `unsafe` in case the trait
-    /// implementation is used with other callers. The
-    /// implementation of this method is expected to be
-    /// declared `#[inline(always)]` and to rely on this
-    /// invariant without checking it on release builds.
-    unsafe fn single_byte(&self, ascii: u8) -> Self::Output;
+    /// The implementation is expected to be marked
+    /// `#[inline(always)]`.
+    fn single_byte(&self, ascii: Ascii) -> Self::Output;
 
     /// Map a two-byte UTF-8 sequence to `Output`.
     ///
-    /// When `Output` is `char`,
-    /// `two_bytes_to_char(first, second)`
+    /// When `Output` is `char`, `sequence.to_char()`
     /// is the appropriate implementation.
     ///
-    /// # Safety
-    ///
-    /// The caller must guarantee that `first` and `second`
-    /// form a valid two-byte UTF-8 sequence.
-    /// The callers in `utf8_iter` guarantee
-    /// this, but this is `unsafe` in case the trait
-    /// implementation is used with other callers. The
-    /// implementation of this method is expected to be
-    /// declared `#[inline(always)]` and to rely on this
-    /// invariant without checking it on release builds.
-    unsafe fn two_byte(&self, first: u8, second: u8) -> Self::Output;
+    /// The implementation is expected to be marked
+    /// `#[inline(always)]`.
+    fn two_byte(&self, sequence: TwoByteSequence) -> Self::Output;
 
     /// Map a three-byte UTF-8 sequence to `Output`.
     ///
-    /// When `Output` is `char`,
-    /// `unsafe { three_bytes_to_char(first, second, third) }`
+    /// When `Output` is `char`, `sequence.to_char()`
     /// is the appropriate implementation.
     ///
-    /// # Safety
-    ///
-    /// The caller must guarantee that `first`, `second`,
-    /// and `third` form a valid three-byte UTF-8 sequence.
-    /// The callers in `utf8_iter` guarantee
-    /// this, but this is `unsafe` in case the trait
-    /// implementation is used with other callers. The
-    /// implementation of this method is expected to be
-    /// declared `#[inline(always)]` and to rely on this
-    /// invariant without checking it on release builds.
-    unsafe fn three_byte(&self, first: u8, second: u8, third: u8) -> Self::Output;
+    /// The implementation is expected to be marked
+    /// `#[inline(always)]`.
+    fn three_byte(&self, sequence: ThreeByteSequence) -> Self::Output;
 
     /// Map a four-byte UTF-8 sequence to `Output`.
     ///
-    /// When `Output` is `char`,
-    /// `unsafe { four_bytes_to_char(first, second, third, fourth) }`
+    /// When `Output` is `char`, `sequence.to_char()`
     /// is the appropriate implementation.
     ///
-    /// # Safety
-    ///
-    /// The caller must guarantee that `first`, `second`,
-    /// `third`, and `fourth` form a valid four-byte UTF-8 sequence.
-    /// The callers in `utf8_iter` guarantee
-    /// this, but this is `unsafe` in case the trait
-    /// implementation is used with other callers. The
-    /// implementation of this method is expected to be
-    /// declared `#[inline(always)]` and to rely on this
-    /// invariant without checking it on release builds.
-    unsafe fn four_byte(&self, first: u8, second: u8, third: u8, fourth: u8) -> Self::Output;
+    /// The implementation is expected to be marked
+    /// `#[inline(always)]`.
+    fn four_byte(&self, sequence: FourByteSequence) -> Self::Output;
 
     /// Map a single UTF-8 error to `Output`.
     ///
@@ -123,7 +94,7 @@ pub trait Utf8Handler {
     fn error(&self) -> Self::Output {
         // SAFETY: These bytes are statically known to form
         // a well-formed UTF-8 sequence.
-        unsafe { self.three_byte(0xEF, 0xBF, 0xBD) }
+        self.three_byte(unsafe { ThreeByteSequence::new_unchecked(0xEF, 0xBF, 0xBD) })
     }
 }
 
@@ -177,12 +148,9 @@ where
             return None;
         }
         let first = self.remaining[0];
-        if single_byte(first) {
+        if let Ok(ascii) = Ascii::try_new(first) {
             self.remaining = &self.remaining[1..];
-            // SAFETY: We checked the invariant of
-            // `self.handler.single_byte` above with
-            // `single_byte(first)`.
-            return Some(unsafe { self.handler.single_byte(first) });
+            return Some(self.handler.single_byte(ascii));
         }
         if !multi_byte_lead(first) || self.remaining.len() == 1 {
             self.remaining = &self.remaining[1..];
@@ -199,7 +167,10 @@ where
             // `self.handler.two_byte` with the combination of
             // `single_byte(first)`, `two_byte_prefix(first, second)`,
             // and `below_three_byte(first)`.
-            return Some(unsafe { self.handler.two_byte(first, second) });
+            return Some(unsafe {
+                self.handler
+                    .two_byte(TwoByteSequence::new_unchecked(first, second))
+            });
         }
         if self.remaining.len() == 2 {
             self.remaining = &self.remaining[2..];
@@ -216,7 +187,10 @@ where
             // `self.handler.three_byte` with the combination of
             // `single_byte(first)`, `two_byte_prefix(first, second)`,
             // `below_three_byte(first)`, and `below_four_byte(first)`.
-            return Some(unsafe { self.handler.three_byte(first, second, third) });
+            return Some(unsafe {
+                self.handler
+                    .three_byte(ThreeByteSequence::new_unchecked(first, second, third))
+            });
         }
         // At this point, we have a valid 3-byte prefix of a
         // four-byte sequence that has to be incomplete, because
@@ -246,7 +220,7 @@ where
                 // SAFETY: We checked the invariant of
                 // `self.handler.single_byte` above with
                 // `single_byte(first)`.
-                return Some(unsafe { self.handler.single_byte(first) });
+                return Some(unsafe { self.handler.single_byte(Ascii::new_unchecked(first)) });
             }
             let second = self.remaining[1];
             if two_byte_lead(first) {
@@ -257,7 +231,10 @@ where
                 // SAFETY: We checked the invariant of
                 // `self.handler.two_byte` with the combination of
                 // `two_byte_lead(first)` and `unconstrained_continuation(second)`.
-                return Some(unsafe { self.handler.two_byte(first, second) });
+                return Some(unsafe {
+                    self.handler
+                        .two_byte(TwoByteSequence::new_unchecked(first, second))
+                });
             }
             let third = self.remaining[2];
             if !three_byte_prefix(first, second, third) {
@@ -269,7 +246,10 @@ where
                 // `self.handler.three_byte` with the combination of
                 // `single_byte(first)`, `two_byte_lead(first)`,
                 // `three_byte_prefix(first, second, third)`, and `below_four_byte(first)`.
-                return Some(unsafe { self.handler.three_byte(first, second, third) });
+                return Some(unsafe {
+                    self.handler
+                        .three_byte(ThreeByteSequence::new_unchecked(first, second, third))
+                });
             }
             let fourth = self.remaining[3];
             if !unconstrained_continuation(fourth) {
@@ -281,7 +261,11 @@ where
             // `single_byte(first)`, `two_byte_lead(first)`,
             // `three_byte_prefix(first, second, third)`, `below_four_byte(first)`,
             // and `unconstrained_continuation(fourth)`.
-            return Some(unsafe { self.handler.four_byte(first, second, third, fourth) });
+            return Some(unsafe {
+                self.handler.four_byte(FourByteSequence::new_unchecked(
+                    first, second, third, fourth,
+                ))
+            });
         }
         self.next_fallback()
     }

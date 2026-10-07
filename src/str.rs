@@ -20,6 +20,11 @@ use crate::helpers::single_byte;
 use crate::helpers::unconstrained_continuation;
 use crate::Utf8Handler;
 
+use utf_types::utf8::Ascii;
+use utf_types::utf8::FourByteSequence;
+use utf_types::utf8::ThreeByteSequence;
+use utf_types::utf8::TwoByteSequence;
+
 /// Iterator over guaranteed-well-formed UTF-8 with `Utf8Handler`.
 /// The `Utf8Handler::error()` is, of course, never called.
 #[derive(Debug)]
@@ -132,7 +137,10 @@ where
             //
             // INVARIANT UPHELD for `self.inner`:
             // We consumed a complete UTF-8 sequence.
-            return unsafe { self.handler.two_byte(first, second) };
+            return unsafe {
+                self.handler
+                    .two_byte(TwoByteSequence::new_unchecked(first, second))
+            };
         }
         // SAFETY: Since we don't have a single-byte sequence or a two-byte
         // sequence (per above) and we know `self.inner` represented
@@ -148,7 +156,10 @@ where
             //
             // INVARIANT UPHELD for `self.inner`:
             // We consumed a complete UTF-8 sequence.
-            return unsafe { self.handler.three_byte(first, second, third) };
+            return unsafe {
+                self.handler
+                    .three_byte(ThreeByteSequence::new_unchecked(first, second, third))
+            };
         }
         // SAFETY: Since we don't have a single-byte sequence, a two-byte
         // sequence, or a three-byte sequence (per above) and we know
@@ -162,7 +173,11 @@ where
         //
         // INVARIANT UPHELD for `self.inner`:
         // We consumed a complete UTF-8 sequence.
-        unsafe { self.handler.four_byte(first, second, third, fourth) }
+        unsafe {
+            self.handler.four_byte(FourByteSequence::new_unchecked(
+                first, second, third, fourth,
+            ))
+        }
     }
 }
 
@@ -194,7 +209,7 @@ where
             //
             // INVARIANT UPHELD for `self.inner`:
             // We consumed a complete UTF-8 sequence.
-            return Some(unsafe { self.handler.single_byte(first) });
+            return Some(unsafe { self.handler.single_byte(Ascii::new_unchecked(first)) });
         }
         // SAFETY: Since `self.inner` represented well-formed UTF-8
         // upon entry into this method and `first` is not ASCII,
@@ -223,7 +238,7 @@ where
             //
             // INVARIANT UPHELD for `self.inner`:
             // We consumed a complete UTF-8 sequence.
-            return Some(unsafe { self.handler.single_byte(last) });
+            return Some(unsafe { self.handler.single_byte(Ascii::new_unchecked(last)) });
         }
         debug_assert!(unconstrained_continuation(last));
         // SAFETY: Since the last byte was not a single-byte sequence
@@ -238,7 +253,10 @@ where
             //
             // INVARIANT UPHELD for `self.inner`:
             // We consumed a complete UTF-8 sequence.
-            return Some(unsafe { self.handler.two_byte(second_last, last) });
+            return Some(unsafe {
+                self.handler
+                    .two_byte(TwoByteSequence::new_unchecked(second_last, last))
+            });
         }
         // SAFETY: Given that `self.inner` represented well-formed
         // UTF-8 upon entry into this method and we've ruled out a
@@ -253,7 +271,13 @@ where
             //
             // INVARIANT UPHELD for `self.inner`:
             // We consumed a complete UTF-8 sequence.
-            return Some(unsafe { self.handler.three_byte(third_last, second_last, last) });
+            return Some(unsafe {
+                self.handler.three_byte(ThreeByteSequence::new_unchecked(
+                    third_last,
+                    second_last,
+                    last,
+                ))
+            });
         }
         // SAFETY: Given that `self.inner` represented well-formed
         // UTF-8 upon entry into this method and we've ruled out a
@@ -268,8 +292,12 @@ where
         // INVARIANT UPHELD for `self.inner`:
         // We consumed a complete UTF-8 sequence.
         Some(unsafe {
-            self.handler
-                .four_byte(fourth_last, third_last, second_last, last)
+            self.handler.four_byte(FourByteSequence::new_unchecked(
+                fourth_last,
+                third_last,
+                second_last,
+                last,
+            ))
         })
     }
 }
