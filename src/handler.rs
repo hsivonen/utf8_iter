@@ -169,7 +169,7 @@ where
                     self.remaining = after_three;
                     return Some(self.handler.three_byte(three_byte));
                 }
-                //  We have already determined that we don't have a single-byte,
+                // We have already determined that we don't have a single-byte,
                 // two-byte, or three-byte sequence.
                 // We cannot have a well-formed four-byte sequence, because if
                 // we had one, `next` would have consumed it. Consume three bytes
@@ -179,17 +179,15 @@ where
                     self.remaining = after_three;
                     return Some(self.error());
                 }
-            } else {
-                debug_assert_eq!(after_two.len(), 0);
-                // End of input after two bytes. We have already determined
-                // that `first` is not ASCII and that `prepared_two` is not
-                // a two-byte UTF-8 sequence. If it is a prefix of a three-byte
-                // sequence or of a four-byte sequence, consume both bytes.
-                // Otherwise, fall through to consuming one byte.
-                if prepared_two.sequence_prefix_assuming_first_not_ascii() {
-                    self.remaining = after_two;
-                    return Some(self.error());
-                }
+            }
+            // We have already determined
+            // that `first` is not ASCII and that `prepared_two` is not
+            // a two-byte UTF-8 sequence. If it is a prefix of a three-byte
+            // sequence or of a four-byte sequence, consume both bytes.
+            // Otherwise, fall through to consuming one byte.
+            if prepared_two.sequence_prefix_assuming_first_not_ascii() {
+                self.remaining = after_two;
+                return Some(self.error());
             }
         }
         self.remaining = after_one;
