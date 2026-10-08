@@ -241,7 +241,7 @@ where
 {
     type Item = H::Output;
 
-    #[inline]
+    #[inline(always)]
     fn next(&mut self) -> Option<H::Output> {
         if self.remaining.len() >= 4 {
             // UNWRAP: Length checked at the start of the method.
@@ -252,14 +252,13 @@ where
             }
             // UNWRAP: Length checked at the start of the method.
             let (&second, after_two) = after_one.split_first().unwrap();
-            let prepared_two = PreparedTwoBytes::new(first, second);
-            if let Ok(two_byte) = TwoByteSequence::try_new_with_prepared(prepared_two) {
+            if let Ok(two_byte) = TwoByteSequence::try_new(first, second) {
                 self.remaining = after_two;
                 return Some(self.handler.two_byte(two_byte));
             }
             // UNWRAP: Length checked at the start of the method.
             let (&third, after_three) = after_two.split_first().unwrap();
-            let prepared_three = PreparedThreeBytes::new_with_prepared(prepared_two, third);
+            let prepared_three = PreparedThreeBytes::new(first, second, third);
             if let Ok(three_byte) = ThreeByteSequence::try_new_with_prepared(prepared_three) {
                 self.remaining = after_three;
                 return Some(self.handler.three_byte(three_byte));
@@ -279,7 +278,7 @@ impl<'a, H> DoubleEndedIterator for Utf8CharsWithHandler<'a, H>
 where
     H: Utf8Handler,
 {
-    #[inline]
+    #[inline(always)]
     fn next_back(&mut self) -> Option<H::Output> {
         if self.remaining.len() >= 4 {
             // UNWRAP: Length checked at the start of the method.
