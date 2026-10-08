@@ -20,10 +20,6 @@ use utf_types::utf8::ThreeByteSequence;
 use utf_types::utf8::TwoByteSequence;
 use utf_types::utf8::Utf8ByteSequence;
 
-use crate::helpers::four_bytes_to_char;
-use crate::helpers::three_bytes_to_char;
-use crate::helpers::two_bytes_to_char;
-
 use crate::Utf8Handler;
 
 /// The basic `Output = char` case.

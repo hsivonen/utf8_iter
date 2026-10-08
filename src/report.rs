@@ -23,10 +23,6 @@ use utf_types::utf8::Utf8ByteSequence;
 use crate::Utf8Handler;
 use core::fmt::Formatter;
 
-use crate::helpers::four_bytes_to_char;
-use crate::helpers::three_bytes_to_char;
-use crate::helpers::two_bytes_to_char;
-
 /// A type for signaling UTF-8 errors.
 #[derive(Debug, PartialEq)]
 #[non_exhaustive]

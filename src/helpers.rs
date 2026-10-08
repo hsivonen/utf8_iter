@@ -412,7 +412,7 @@ pub unsafe fn bits_to_char(high_ten: u32, low_six: u32) -> char {
 }
 
 #[inline(always)]
-fn in_inclusive_range8(i: u8, start: u8, end: u8) -> bool {
+const fn in_inclusive_range8(i: u8, start: u8, end: u8) -> bool {
     i.wrapping_sub(start) <= (end - start)
 }
 

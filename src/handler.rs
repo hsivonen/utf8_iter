@@ -33,6 +33,14 @@ use utf_types::utf8::FourByteSequence;
 use utf_types::utf8::ThreeByteSequence;
 use utf_types::utf8::TwoByteSequence;
 
+const SEQUENCE_FOR_REPLACEMENT_CHARACTER: ThreeByteSequence = const {
+    if let Ok(sequence) = ThreeByteSequence::try_new(0xEF, 0xBF, 0xBD) {
+        sequence
+    } else {
+        panic!()
+    }
+};
+
 /// Mapping from the four kinds of byte sequences or error
 /// to output.
 pub trait Utf8Handler {
@@ -92,9 +100,7 @@ pub trait Utf8Handler {
     /// be declared `#[inline(always)]`.
     #[inline(always)]
     fn error(&self) -> Self::Output {
-        // SAFETY: These bytes are statically known to form
-        // a well-formed UTF-8 sequence.
-        self.three_byte(unsafe { ThreeByteSequence::new_unchecked(0xEF, 0xBF, 0xBD) })
+        self.three_byte(SEQUENCE_FOR_REPLACEMENT_CHARACTER)
     }
 }
 
