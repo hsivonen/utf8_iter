@@ -30,6 +30,8 @@ use crate::helpers::unconstrained_continuation;
 
 use utf_types::utf8::Ascii;
 use utf_types::utf8::FourByteSequence;
+use utf_types::utf8::PreparedThreeBytes;
+use utf_types::utf8::PreparedTwoBytes;
 use utf_types::utf8::ThreeByteSequence;
 use utf_types::utf8::TwoByteSequence;
 
@@ -150,58 +152,87 @@ where
     #[cold]
     #[inline(never)]
     fn next_fallback(&mut self) -> Option<H::Output> {
-        if self.remaining.is_empty() {
-            return None;
-        }
-        let first = self.remaining[0];
+        let (&first, after_one) = self.remaining.split_first()?;
         if let Ok(ascii) = Ascii::try_new(first) {
-            self.remaining = &self.remaining[1..];
+            self.remaining = after_one;
             return Some(self.handler.single_byte(ascii));
         }
-        if !multi_byte_lead(first) || self.remaining.len() == 1 {
-            self.remaining = &self.remaining[1..];
-            return Some(self.error());
+        if let Some((&second, after_two)) = after_one.split_first() {
+            let prepared_two = PreparedTwoBytes::new(first, second);
+            if let Ok(two_byte) = TwoByteSequence::try_new_with_prepared(prepared_two) {
+                self.remaining = after_two;
+                return Some(self.handler.two_byte(two_byte));
+            }
+            if let Some((&third, after_three)) = after_two.split_first() {
+                let prepared_three = PreparedThreeBytes::new_with_prepared(prepared_two, third);
+                if let Ok(three_byte) = ThreeByteSequence::try_new_with_prepared(prepared_three) {
+                    self.remaining = after_three;
+                    return Some(self.handler.three_byte(three_byte));
+                }
+                //  We have already determined that we don't have a single-byte,
+                // two-byte, or three-byte sequence.
+                // We cannot have a well-formed four-byte sequence, because if
+                // we had one, `next` would have consumed it. Consume three bytes
+                // if we have a three-byte prefix of a four-byte sequence.
+                // Otherwise, fall through to consuming one byte.
+                if prepared_three.sequence_prefix_assuming_not_well_formed_single_or_two_byte() {
+                    self.remaining = after_three;
+                    return Some(self.error());
+                }
+            } else {
+                debug_assert_eq!(after_two.len(), 0);
+                // End of input after two bytes. We have already determined
+                // that `first` is not ASCII and that `prepared_two` is not
+                // a two-byte UTF-8 sequence. If it is a prefix of a three-byte
+                // sequence or of a four-byte sequence, consume both bytes.
+                // Otherwise, fall through to consuming one byte.
+                if prepared_two.sequence_prefix_assuming_first_not_ascii() {
+                    self.remaining = after_two;
+                    return Some(self.error());
+                }
+            }
         }
-        let second = self.remaining[1];
-        if !two_byte_prefix(first, second) {
-            self.remaining = &self.remaining[1..];
-            return Some(self.error());
+        self.remaining = after_one;
+        Some(self.error())
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn next_back_fallback(&mut self) -> Option<H::Output> {
+        let (&last, before_one) = self.remaining.split_last()?;
+        if let Ok(ascii) = Ascii::try_new(last) {
+            self.remaining = before_one;
+            return Some(self.handler.single_byte(ascii));
         }
-        if below_three_byte(first) {
-            self.remaining = &self.remaining[2..];
-            // SAFETY: We checked the invariant of
-            // `self.handler.two_byte` with the combination of
-            // `single_byte(first)`, `two_byte_prefix(first, second)`,
-            // and `below_three_byte(first)`.
-            return Some(unsafe {
-                self.handler
-                    .two_byte(TwoByteSequence::new_unchecked(first, second))
-            });
+        if let Some((&second_last, before_two)) = before_one.split_last() {
+            let prepared_two = PreparedTwoBytes::new(second_last, last);
+            if let Ok(two_byte) = TwoByteSequence::try_new_with_prepared(prepared_two) {
+                self.remaining = before_two;
+                return Some(self.handler.two_byte(two_byte));
+            }
+            if let Some((&third_last, before_three)) = before_two.split_last() {
+                let prepared_three = PreparedThreeBytes::new(third_last, second_last, last);
+                if let Ok(three_byte) = ThreeByteSequence::try_new_with_prepared(prepared_three) {
+                    self.remaining = before_three;
+                    return Some(self.handler.three_byte(three_byte));
+                }
+                // Consume three bytes if we have a three-byte prefix of a four-byte sequence.
+                if prepared_three.prefix_of_four_byte() {
+                    self.remaining = before_three;
+                    return Some(self.error());
+                }
+            }
+            // We've established that the two last bytes don't form a two-byte
+            // UTF-8 sequence, but they could form a two-byte prefix of a
+            // three-byte or four-byte sequence, in which case we need to consume
+            // two bytes instead of falling through to consuming just one byte.
+            // We have not established whether `second_last` is ASCII!
+            if prepared_two.sequence_prefix() {
+                self.remaining = before_two;
+                return Some(self.error());
+            }
         }
-        if self.remaining.len() == 2 {
-            self.remaining = &self.remaining[2..];
-            return Some(self.error());
-        }
-        let third = self.remaining[2];
-        if !unconstrained_continuation(third) {
-            self.remaining = &self.remaining[2..];
-            return Some(self.error());
-        }
-        if below_four_byte(first) {
-            self.remaining = &self.remaining[3..];
-            // SAFETY: We checked the invariant of
-            // `self.handler.three_byte` with the combination of
-            // `single_byte(first)`, `two_byte_prefix(first, second)`,
-            // `below_three_byte(first)`, and `below_four_byte(first)`.
-            return Some(unsafe {
-                self.handler
-                    .three_byte(ThreeByteSequence::new_unchecked(first, second, third))
-            });
-        }
-        // At this point, we have a valid 3-byte prefix of a
-        // four-byte sequence that has to be incomplete, because
-        // otherwise `next()` would have succeeded.
-        self.remaining = &self.remaining[3..];
+        self.remaining = before_one;
         Some(self.error())
     }
 }
@@ -214,64 +245,33 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<H::Output> {
-        // This loop is only broken out of as goto forward
-        #[allow(clippy::never_loop)]
-        loop {
-            if self.remaining.len() < 4 {
-                break;
+        if self.remaining.len() >= 4 {
+            // UNWRAP: Length checked at the start of the method.
+            let (&first, after_one) = self.remaining.split_first().unwrap();
+            if let Ok(ascii) = Ascii::try_new(first) {
+                self.remaining = after_one;
+                return Some(self.handler.single_byte(ascii));
             }
-            let first = self.remaining[0];
-            if single_byte(first) {
-                self.remaining = &self.remaining[1..];
-                // SAFETY: We checked the invariant of
-                // `self.handler.single_byte` above with
-                // `single_byte(first)`.
-                return Some(unsafe { self.handler.single_byte(Ascii::new_unchecked(first)) });
+            // UNWRAP: Length checked at the start of the method.
+            let (&second, after_two) = after_one.split_first().unwrap();
+            let prepared_two = PreparedTwoBytes::new(first, second);
+            if let Ok(two_byte) = TwoByteSequence::try_new_with_prepared(prepared_two) {
+                self.remaining = after_two;
+                return Some(self.handler.two_byte(two_byte));
             }
-            let second = self.remaining[1];
-            if two_byte_lead(first) {
-                if !unconstrained_continuation(second) {
-                    break;
-                }
-                self.remaining = &self.remaining[2..];
-                // SAFETY: We checked the invariant of
-                // `self.handler.two_byte` with the combination of
-                // `two_byte_lead(first)` and `unconstrained_continuation(second)`.
-                return Some(unsafe {
-                    self.handler
-                        .two_byte(TwoByteSequence::new_unchecked(first, second))
-                });
+            // UNWRAP: Length checked at the start of the method.
+            let (&third, after_three) = after_two.split_first().unwrap();
+            let prepared_three = PreparedThreeBytes::new_with_prepared(prepared_two, third);
+            if let Ok(three_byte) = ThreeByteSequence::try_new_with_prepared(prepared_three) {
+                self.remaining = after_three;
+                return Some(self.handler.three_byte(three_byte));
             }
-            let third = self.remaining[2];
-            if !three_byte_prefix(first, second, third) {
-                break;
+            // UNWRAP: Length checked at the start of the method.
+            let (&fourth, after_four) = after_three.split_first().unwrap();
+            if let Ok(four_byte) = FourByteSequence::try_new_with_prepared(prepared_three, fourth) {
+                self.remaining = after_four;
+                return Some(self.handler.four_byte(four_byte));
             }
-            if below_four_byte(first) {
-                self.remaining = &self.remaining[3..];
-                // SAFETY: We checked the invariant of
-                // `self.handler.three_byte` with the combination of
-                // `single_byte(first)`, `two_byte_lead(first)`,
-                // `three_byte_prefix(first, second, third)`, and `below_four_byte(first)`.
-                return Some(unsafe {
-                    self.handler
-                        .three_byte(ThreeByteSequence::new_unchecked(first, second, third))
-                });
-            }
-            let fourth = self.remaining[3];
-            if !unconstrained_continuation(fourth) {
-                break;
-            }
-            self.remaining = &self.remaining[4..];
-            // SAFETY: We checked the invariant of
-            // `self.handler.four_byte` with the combination of
-            // `single_byte(first)`, `two_byte_lead(first)`,
-            // `three_byte_prefix(first, second, third)`, `below_four_byte(first)`,
-            // and `unconstrained_continuation(fourth)`.
-            return Some(unsafe {
-                self.handler.four_byte(FourByteSequence::new_unchecked(
-                    first, second, third, fourth,
-                ))
-            });
         }
         self.next_fallback()
     }
@@ -279,34 +279,39 @@ where
 
 impl<'a, H> DoubleEndedIterator for Utf8CharsWithHandler<'a, H>
 where
-    H: Utf8Handler + Clone,
+    H: Utf8Handler,
 {
     #[inline]
     fn next_back(&mut self) -> Option<H::Output> {
-        if self.remaining.is_empty() {
-            return None;
-        }
-        for (attempt, b) in (1..).zip(self.remaining.iter().rev()) {
-            if !unconstrained_continuation(*b) {
-                let (head, tail) = self.remaining.split_at(self.remaining.len() - attempt);
-                let mut inner = Utf8CharsWithHandler {
-                    remaining: tail,
-                    handler: self.handler.clone(),
-                };
-                let candidate = inner.next();
-                if inner.as_slice().is_empty() {
-                    self.remaining = head;
-                    return candidate;
-                }
-                break;
+        if self.remaining.len() >= 4 {
+            // UNWRAP: Length checked at the start of the method.
+            let (&last, before_one) = self.remaining.split_last().unwrap();
+            if let Ok(ascii) = Ascii::try_new(last) {
+                self.remaining = before_one;
+                return Some(self.handler.single_byte(ascii));
             }
-            if attempt == 4 {
-                break;
+            // UNWRAP: Length checked at the start of the method.
+            let (&second_last, before_two) = before_one.split_last().unwrap();
+            if let Ok(two_byte) = TwoByteSequence::try_new(second_last, last) {
+                self.remaining = before_two;
+                return Some(self.handler.two_byte(two_byte));
+            }
+            // UNWRAP: Length checked at the start of the method.
+            let (&third_last, before_three) = before_two.split_last().unwrap();
+            if let Ok(three_byte) = ThreeByteSequence::try_new(third_last, second_last, last) {
+                self.remaining = before_three;
+                return Some(self.handler.three_byte(three_byte));
+            }
+            // UNWRAP: Length checked at the start of the method.
+            let (&fourth_last, before_four) = before_three.split_last().unwrap();
+            if let Ok(four_byte) =
+                FourByteSequence::try_new(fourth_last, third_last, second_last, last)
+            {
+                self.remaining = before_four;
+                return Some(self.handler.four_byte(four_byte));
             }
         }
-
-        self.remaining = &self.remaining[..self.remaining.len() - 1];
-        Some(self.error())
+        self.next_back_fallback()
     }
 }
 
