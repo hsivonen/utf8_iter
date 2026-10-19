@@ -14,16 +14,16 @@
 // See the Licenses for the specific language governing permissions and
 // limitations under the Licenses.
 
-use crate::helpers::below_four_byte;
-use crate::helpers::below_three_byte;
-use crate::helpers::single_byte;
-use crate::helpers::unconstrained_continuation;
 use crate::Utf8Handler;
 
 use utf_types::utf8::Ascii;
 use utf_types::utf8::FourByteSequence;
 use utf_types::utf8::ThreeByteSequence;
 use utf_types::utf8::TwoByteSequence;
+use utf_types::utf8::LeadForThreeByte;
+use utf_types::utf8::LeadForFourByte;
+use utf_types::utf8::LeadForMultiByte;
+use utf_types::utf8::UnconstrainedContinuation;
 
 /// Iterator over guaranteed-well-formed UTF-8 with `Utf8Handler`.
 /// The `Utf8Handler::error()` is, of course, never called.
@@ -75,9 +75,9 @@ where
     #[inline(always)]
     pub fn next_with_minimum_lead(
         &mut self,
-        multi_byte_lead: crate::helpers::MultiByteLead,
+        multi_byte_lead: LeadForMultiByte,
     ) -> Option<H::Output> {
-        let bound = multi_byte_lead.get();
+        let bound = multi_byte_lead.to_u8();
         loop {
             let byte = *self.inner.next()?;
             if byte < bound {
@@ -125,12 +125,13 @@ where
     /// been modified between that call and the call to this method.
     #[inline(always)]
     unsafe fn consume_continuations(&mut self, first: u8) -> H::Output {
+        debug_assert!(LeadForMultiByte::is(first));
         // SAFETY: Since we don't have a single-byte sequence (per the
         // safety invariant of this method) and we know `self.inner`
         // represented well-formed UTF-8 when `first` was obtained,
         // we know that the second byte exists.
         let second = *unsafe { self.inner.next().unwrap_unchecked() };
-        if below_three_byte(first) {
+        if first < LeadForThreeByte::MIN as u8 {
             // SAFETY: We checked the invariant of
             // `self.handler.two_byte` with `below_three_byte(first)` given
             // given the safety invariant of this method.
@@ -147,7 +148,7 @@ where
         // well-formed UTF-8 when `first` was obtained, we know that
         // the third byte exists.
         let third = *unsafe { self.inner.next().unwrap_unchecked() };
-        if below_four_byte(first) {
+        if first < LeadForFourByte::MIN as u8 {
             // SAFETY: We checked the invariant of
             // `self.handler.three_byte` with the combination of
             // `below_three_byte(first)`, and
@@ -202,14 +203,8 @@ where
     #[inline]
     fn next(&mut self) -> Option<H::Output> {
         let first = *self.inner.next()?;
-        if single_byte(first) {
-            // SAFETY: We checked the invariant of
-            // `self.handler.single_byte` above with
-            // `single_byte(first)`.
-            //
-            // INVARIANT UPHELD for `self.inner`:
-            // We consumed a complete UTF-8 sequence.
-            return Some(unsafe { self.handler.single_byte(Ascii::new_unchecked(first)) });
+        if let Ok(ascii) = Ascii::try_new(first) {
+            return Some(self.handler.single_byte(ascii));
         }
         // SAFETY: Since `self.inner` represented well-formed UTF-8
         // upon entry into this method and `first` is not ASCII,
@@ -231,21 +226,15 @@ where
     #[inline]
     fn next_back(&mut self) -> Option<H::Output> {
         let last = *self.inner.next_back()?;
-        if single_byte(last) {
-            // SAFETY: We checked the invariant of
-            // `self.handler.single_byte` above with
-            // `single_byte(last)`.
-            //
-            // INVARIANT UPHELD for `self.inner`:
-            // We consumed a complete UTF-8 sequence.
-            return Some(unsafe { self.handler.single_byte(Ascii::new_unchecked(last)) });
+        if let Ok(ascii) = Ascii::try_new(last) {
+            return Some(self.handler.single_byte(ascii));
         }
-        debug_assert!(unconstrained_continuation(last));
+        debug_assert!(UnconstrainedContinuation::is(last));
         // SAFETY: Since the last byte was not a single-byte sequence
         // given that `self.inner` represented well-formed UTF-8 upon
         // entry into this method, an earlier byte must exist.
         let second_last = *unsafe { self.inner.next_back().unwrap_unchecked() };
-        if !unconstrained_continuation(second_last) {
+        if !UnconstrainedContinuation::is(second_last) {
             // SAFETY: Given that `self.inner` represented well-formed
             // UTF-8 upon entry into this method and that `last` is a continuation
             // but `second_last` is not, they must form a two-byte UTF-8
@@ -263,7 +252,7 @@ where
         // single-byte sequence and a two-byte sequence, an earlier
         // byte must exist.
         let third_last = *unsafe { self.inner.next_back().unwrap_unchecked() };
-        if !unconstrained_continuation(third_last) {
+        if !UnconstrainedContinuation::is(third_last) {
             // SAFETY: Given that `self.inner` represented well-formed
             // UTF-8 upon entry into this method and that `last` and `second_last`
             // are continuations but `third_last` is not, they must form a three-byte UTF-8

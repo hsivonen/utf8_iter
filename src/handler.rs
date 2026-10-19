@@ -109,7 +109,7 @@ pub trait Utf8Handler {
 /// Iterator by `char` over `&[u8]` that contains
 /// potentially-invalid UTF-8 with a handler for the four
 /// kinds of byte sequences (or error). See the crate documentation.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Utf8CharsWithHandler<'a, H>
 where
     H: Utf8Handler,
@@ -158,11 +158,11 @@ where
             return Some(self.handler.single_byte(ascii));
         }
         if let Some((&second, after_two)) = after_one.split_first() {
-            let prepared_two = PreparedTwoBytes::new(first, second);
-            if let Ok(two_byte) = TwoByteSequence::try_new_with_prepared(prepared_two) {
+            if let Ok(two_byte) = TwoByteSequence::try_new(first, second) {
                 self.remaining = after_two;
                 return Some(self.handler.two_byte(two_byte));
             }
+            let prepared_two = PreparedTwoBytes::new(first, second);
             if let Some((&third, after_three)) = after_two.split_first() {
                 let prepared_three = PreparedThreeBytes::new_with_prepared(prepared_two, third);
                 if let Ok(three_byte) = ThreeByteSequence::try_new_with_prepared(prepared_three) {
@@ -203,11 +203,11 @@ where
             return Some(self.handler.single_byte(ascii));
         }
         if let Some((&second_last, before_two)) = before_one.split_last() {
-            let prepared_two = PreparedTwoBytes::new(second_last, last);
-            if let Ok(two_byte) = TwoByteSequence::try_new_with_prepared(prepared_two) {
+            if let Ok(two_byte) = TwoByteSequence::try_new(second_last, last) {
                 self.remaining = before_two;
                 return Some(self.handler.two_byte(two_byte));
             }
+            let prepared_two = PreparedTwoBytes::new(second_last, last);
             if let Some((&third_last, before_three)) = before_two.split_last() {
                 let prepared_three = PreparedThreeBytes::new(third_last, second_last, last);
                 if let Ok(three_byte) = ThreeByteSequence::try_new_with_prepared(prepared_three) {
@@ -313,6 +313,18 @@ where
 }
 
 impl<H> FusedIterator for Utf8CharsWithHandler<'_, H> where H: Utf8Handler {}
+
+impl<'a, H> Clone for Utf8CharsWithHandler<'a, H>
+where
+    H: Utf8Handler + Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            remaining: self.remaining,
+            handler: self.handler.clone(),
+        }
+    }
+}
 
 // No manually-written tests for forward-iteration, because the code passed multiple
 // days of fuzzing comparing with known-good behavior.

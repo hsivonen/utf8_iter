@@ -23,7 +23,7 @@ macro_rules! named_iterators_from_no_argument_handler {
      $char_indices:ident,
     ) => (
         $(#[$chars_meta])*
-        #[derive(Debug, Clone)]
+        #[derive(Debug)]
         pub struct $chars<'a> {
             inner: crate::Utf8CharsWithHandler<'a, $handler>,
         }
@@ -63,8 +63,16 @@ macro_rules! named_iterators_from_no_argument_handler {
 
         impl core::iter::FusedIterator for $chars<'_> {}
 
+        impl<'a> Clone for $chars<'a> {
+            fn clone(&self) -> Self {
+                Self {
+                    inner: self.inner.clone(),
+                }
+            }
+        }
+
         $(#[$chars_indices_meta])*
-        #[derive(Debug, Clone)]
+        #[derive(Debug)]
         pub struct $char_indices<'a> {
             inner: crate::Utf8CharIndicesWithHandler<'a, $handler>,
         }
@@ -110,6 +118,13 @@ macro_rules! named_iterators_from_no_argument_handler {
 
         impl core::iter::FusedIterator for $char_indices<'_> {}
 
+        impl<'a> Clone for $char_indices<'a> {
+            fn clone(&self) -> Self {
+                Self {
+                    inner: self.inner.clone(),
+                }
+            }
+        }
     )
 }
 

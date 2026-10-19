@@ -23,7 +23,7 @@ use crate::Utf8Handler;
 use core::iter::FusedIterator;
 
 /// An iterator over the [`char`]s  and their positions.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 #[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct Utf8CharIndicesWithHandler<'a, H>
 where
@@ -35,7 +35,7 @@ where
 
 impl<'a, H> Iterator for Utf8CharIndicesWithHandler<'a, H>
 where
-    H: Utf8Handler + Clone,
+    H: Utf8Handler,
 {
     type Item = (usize, H::Output);
 
@@ -72,7 +72,7 @@ where
 
 impl<'a, H> DoubleEndedIterator for Utf8CharIndicesWithHandler<'a, H>
 where
-    H: Utf8Handler + Clone,
+    H: Utf8Handler,
 {
     #[inline]
     fn next_back(&mut self) -> Option<(usize, H::Output)> {
@@ -83,7 +83,19 @@ where
     }
 }
 
-impl<H> FusedIterator for Utf8CharIndicesWithHandler<'_, H> where H: Utf8Handler + Clone {}
+impl<H> FusedIterator for Utf8CharIndicesWithHandler<'_, H> where H: Utf8Handler {}
+
+impl<'a, H> Clone for Utf8CharIndicesWithHandler<'a, H>
+where
+    H: Utf8Handler + Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            front_offset: self.front_offset,
+            iter: self.iter.clone(),
+        }
+    }
+}
 
 impl<'a, H> Utf8CharIndicesWithHandler<'a, H>
 where
@@ -142,7 +154,7 @@ where
 // ---
 
 /// An iterator over the [`char`]s  and their positions.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 #[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct CharIndicesWithHandler<'a, H>
 where
@@ -197,6 +209,18 @@ where
 }
 
 impl<H> FusedIterator for CharIndicesWithHandler<'_, H> where H: Utf8Handler {}
+
+impl<'a, H> Clone for CharIndicesWithHandler<'a, H>
+where
+    H: Utf8Handler + Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            front_offset: self.front_offset,
+            iter: self.iter.clone(),
+        }
+    }
+}
 
 impl<'a, H> CharIndicesWithHandler<'a, H>
 where
