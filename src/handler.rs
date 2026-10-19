@@ -19,15 +19,6 @@
 
 use core::iter::FusedIterator;
 
-use crate::helpers::below_four_byte;
-use crate::helpers::below_three_byte;
-use crate::helpers::multi_byte_lead;
-use crate::helpers::single_byte;
-use crate::helpers::three_byte_prefix;
-use crate::helpers::two_byte_lead;
-use crate::helpers::two_byte_prefix;
-use crate::helpers::unconstrained_continuation;
-
 use utf_types::utf8::Ascii;
 use utf_types::utf8::FourByteSequence;
 use utf_types::utf8::PreparedThreeBytes;
@@ -148,6 +139,11 @@ where
     fn error(&self) -> H::Output {
         self.handler.error()
     }
+
+    // TODO: Add a method or per-sequence-length methods analogous to
+    // `CharsWithHandler::next_with_minimum_lead`. These would need
+    // to validate the sequences but not compute the `char` or invoke
+    // the handler for the characters that are skipped over.
 
     #[cold]
     #[inline(never)]

@@ -38,7 +38,9 @@ online.
 
 * Increase MSRV to 1.81 (for `core::error::Error`)
 * Reformulate the crate in terms of a pluggable handler trait.
-* Provide a `helpers` module with UTF-8 decoder/validator building blocks.
+* Depend on `utf_types` for making the handler interface safe and
+  for de-duplicating a lookup table in apps that also depend on
+  `encoding_rs` in addition to depending on this crate.
 
 ### 1.0.4
 
