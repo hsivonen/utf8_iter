@@ -23,11 +23,14 @@ use utf_types::utf8::Utf8ByteSequence;
 use crate::Utf8Handler;
 
 /// The basic `Output = char` case.
+///
+/// (Normally this is not particularly interesting outside the
+/// crate, but exporting this is useful for testing.)
 #[derive(Debug, Clone)]
-pub(crate) struct DefaultHandler;
+pub struct DefaultHandler;
 
 impl DefaultHandler {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {}
     }
 }

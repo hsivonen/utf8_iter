@@ -42,6 +42,7 @@ mod report;
 mod macros;
 mod str;
 
+pub use crate::basic::DefaultHandler;
 pub use crate::basic::Utf8CharIndices;
 pub use crate::basic::Utf8Chars;
 pub use crate::basic::Utf8CharsEx;

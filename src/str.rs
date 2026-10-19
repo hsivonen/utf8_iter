@@ -18,11 +18,11 @@ use crate::Utf8Handler;
 
 use utf_types::utf8::Ascii;
 use utf_types::utf8::FourByteSequence;
-use utf_types::utf8::ThreeByteSequence;
-use utf_types::utf8::TwoByteSequence;
-use utf_types::utf8::LeadForThreeByte;
 use utf_types::utf8::LeadForFourByte;
 use utf_types::utf8::LeadForMultiByte;
+use utf_types::utf8::LeadForThreeByte;
+use utf_types::utf8::ThreeByteSequence;
+use utf_types::utf8::TwoByteSequence;
 use utf_types::utf8::UnconstrainedContinuation;
 
 /// Iterator over guaranteed-well-formed UTF-8 with `Utf8Handler`.
