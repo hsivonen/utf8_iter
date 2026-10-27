@@ -18,13 +18,12 @@ use utf_types::utf8::Ascii;
 use utf_types::utf8::FourByteSequence;
 use utf_types::utf8::ThreeByteSequence;
 use utf_types::utf8::TwoByteSequence;
-use utf_types::utf8::Utf8ByteSequence;
 
 use crate::Utf8Handler;
 use core::fmt::Formatter;
 
 /// A type for signaling UTF-8 errors.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq, Hash)]
 #[non_exhaustive]
 pub struct Utf8CharsError;
 
@@ -129,8 +128,9 @@ crate::macros::named_iterators_from_no_argument_handler!(
     /// ```
     ,
     ErrorReportingUtf8Chars,
-    /// Iterator by `char` and their indices over `&[u8]` that contains
-    /// potentially-invalid UTF-8. See the crate documentation.
+    /// Iterator by `Result<char,Utf8CharsError>` and their indices over
+    /// `&[u8]` that contains potentially-invalid UTF-8. See the crate
+    /// documentation.
     ,
     ErrorReportingUtf8CharIndices,
 );

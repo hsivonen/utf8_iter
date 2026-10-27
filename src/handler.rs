@@ -238,7 +238,7 @@ where
     type Item = H::Output;
 
     #[inline(always)]
-    fn next(&mut self) -> Option<H::Output> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.remaining.len() >= 4 {
             // UNWRAP: Length checked at the start of the method.
             let (&first, after_one) = self.remaining.split_first().unwrap();
@@ -267,6 +267,20 @@ where
             }
         }
         self.next_fallback()
+    }
+
+    // TODO: Optimize `count` without a circular dependency
+
+    #[inline(always)]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.remaining.len();
+        ((len + 3) / 4, Some(len))
+    }
+
+    #[inline(always)]
+    fn last(mut self) -> Option<Self::Item> {
+        // No need to go through the entire string.
+        self.next_back()
     }
 }
 

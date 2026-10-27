@@ -39,7 +39,7 @@ where
 {
     type Item = (usize, H::Output);
 
-    #[inline]
+    #[inline(always)]
     fn next(&mut self) -> Option<(usize, H::Output)> {
         let pre_len = self.as_slice().len();
         match self.iter.next() {
@@ -53,17 +53,17 @@ where
         }
     }
 
-    #[inline]
+    #[inline(always)]
     fn count(self) -> usize {
         self.iter.count()
     }
 
-    #[inline]
+    #[inline(always)]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter.size_hint()
     }
 
-    #[inline]
+    #[inline(always)]
     fn last(mut self) -> Option<(usize, H::Output)> {
         // No need to go through the entire string.
         self.next_back()
@@ -74,7 +74,7 @@ impl<'a, H> DoubleEndedIterator for Utf8CharIndicesWithHandler<'a, H>
 where
     H: Utf8Handler,
 {
-    #[inline]
+    #[inline(always)]
     fn next_back(&mut self) -> Option<(usize, H::Output)> {
         self.iter.next_back().map(|ch| {
             let index = self.front_offset + self.as_slice().len();
@@ -115,7 +115,7 @@ where
     /// This has the same lifetime as the original slice, and so the
     /// iterator can continue to be used while this exists.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub fn as_slice(&self) -> &'a [u8] {
         self.iter.as_slice()
     }
@@ -128,23 +128,7 @@ where
 
     /// Returns the byte position of the next character, or the length
     /// of the underlying string if there are no more characters.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use utf8_iter::Utf8CharsEx;
-    /// let mut chars = "a楽".as_bytes().char_indices();
-    ///
-    /// assert_eq!(chars.offset(), 0);
-    /// assert_eq!(chars.next(), Some((0, 'a')));
-    ///
-    /// assert_eq!(chars.offset(), 1);
-    /// assert_eq!(chars.next(), Some((1, '楽')));
-    ///
-    /// assert_eq!(chars.offset(), 4);
-    /// assert_eq!(chars.next(), None);
-    /// ```
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn offset(&self) -> usize {
         self.front_offset
@@ -170,7 +154,7 @@ where
 {
     type Item = (usize, H::Output);
 
-    #[inline]
+    #[inline(always)]
     fn next(&mut self) -> Option<(usize, H::Output)> {
         let pre_len = self.as_str().len();
         match self.iter.next() {
@@ -184,14 +168,20 @@ where
         }
     }
 
-    #[inline]
+    #[inline(always)]
     fn count(self) -> usize {
         self.iter.count()
     }
 
-    #[inline]
+    #[inline(always)]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter.size_hint()
+    }
+
+    #[inline(always)]
+    fn last(mut self) -> Option<(usize, H::Output)> {
+        // No need to go through the entire string.
+        self.next_back()
     }
 }
 
@@ -199,7 +189,7 @@ impl<'a, H> DoubleEndedIterator for CharIndicesWithHandler<'a, H>
 where
     H: Utf8Handler,
 {
-    #[inline]
+    #[inline(always)]
     fn next_back(&mut self) -> Option<(usize, H::Output)> {
         self.iter.next_back().map(|ch| {
             let index = self.front_offset + self.as_str().len();
@@ -240,7 +230,7 @@ where
     /// This has the same lifetime as the original slice, and so the
     /// iterator can continue to be used while this exists.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub fn as_str(&self) -> &'a str {
         self.iter.as_str()
     }
@@ -269,7 +259,7 @@ where
     /// assert_eq!(chars.offset(), 4);
     /// assert_eq!(chars.next(), None);
     /// ```
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub fn offset(&self) -> usize {
         self.front_offset

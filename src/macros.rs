@@ -48,14 +48,30 @@ macro_rules! named_iterators_from_no_argument_handler {
         impl<'a> Iterator for $chars<'a> {
             type Item = $item;
 
-            #[inline]
+            #[inline(always)]
             fn next(&mut self) -> Option<Self::Item> {
                 self.inner.next()
+            }
+
+            #[inline(always)]
+            fn count(self) -> usize {
+                self.inner.count()
+            }
+
+            #[inline(always)]
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                self.inner.size_hint()
+            }
+
+            #[inline(always)]
+            fn last(mut self) -> Option<Self::Item> {
+                // No need to go through the entire string.
+                self.next_back()
             }
         }
 
         impl<'a> DoubleEndedIterator for $chars<'a> {
-            #[inline]
+            #[inline(always)]
             fn next_back(&mut self) -> Option<Self::Item> {
                 self.inner.next_back()
             }
@@ -93,7 +109,7 @@ macro_rules! named_iterators_from_no_argument_handler {
                 self.inner.as_slice()
             }
 
-            #[inline]
+            #[inline(always)]
             #[must_use]
             pub fn offset(&self) -> usize {
                 self.inner.offset()
@@ -103,14 +119,30 @@ macro_rules! named_iterators_from_no_argument_handler {
         impl<'a> Iterator for $char_indices<'a> {
             type Item = (usize, $item);
 
-            #[inline]
+            #[inline(always)]
             fn next(&mut self) -> Option<Self::Item> {
                 self.inner.next()
+            }
+
+            #[inline(always)]
+            fn count(self) -> usize {
+                self.inner.count()
+            }
+
+            #[inline(always)]
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                self.inner.size_hint()
+            }
+
+            #[inline(always)]
+            fn last(mut self) -> Option<Self::Item> {
+                // No need to go through the entire string.
+                self.next_back()
             }
         }
 
         impl<'a> DoubleEndedIterator for $char_indices<'a> {
-            #[inline]
+            #[inline(always)]
             fn next_back(&mut self) -> Option<Self::Item> {
                 self.inner.next_back()
             }

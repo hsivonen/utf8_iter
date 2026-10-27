@@ -18,7 +18,6 @@ use utf_types::utf8::Ascii;
 use utf_types::utf8::FourByteSequence;
 use utf_types::utf8::ThreeByteSequence;
 use utf_types::utf8::TwoByteSequence;
-use utf_types::utf8::Utf8ByteSequence;
 
 use crate::Utf8Handler;
 
@@ -35,40 +34,28 @@ impl DefaultHandler {
     }
 }
 
+impl Default for DefaultHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Utf8Handler for DefaultHandler {
     type Output = char;
 
     /// Map a single-byte UTF-8 sequence to `Output`.
-    ///
-    /// When `Output` is `char`, `ascii.to_char()`
-    /// is the appropriate implementation.
-    ///
-    /// The implementation is expected to be marked
-    /// `#[inline(always)]`.
     #[inline(always)]
     fn single_byte(&self, ascii: Ascii) -> Self::Output {
         ascii.to_char()
     }
 
     /// Map a two-byte UTF-8 sequence to `Output`.
-    ///
-    /// When `Output` is `char`, `sequence.to_char()`
-    /// is the appropriate implementation.
-    ///
-    /// The implementation is expected to be marked
-    /// `#[inline(always)]`.
     #[inline(always)]
     fn two_byte(&self, sequence: TwoByteSequence) -> Self::Output {
         sequence.to_char()
     }
 
     /// Map a three-byte UTF-8 sequence to `Output`.
-    ///
-    /// When `Output` is `char`, `sequence.to_char()`
-    /// is the appropriate implementation.
-    ///
-    /// The implementation is expected to be marked
-    /// `#[inline(always)]`.
     #[inline(always)]
     fn three_byte(&self, sequence: ThreeByteSequence) -> Self::Output {
         sequence.to_char()
@@ -126,13 +113,13 @@ pub trait Utf8CharsEx {
 impl Utf8CharsEx for [u8] {
     /// Convenience method for creating an UTF-8 iterator
     /// for the slice.
-    #[inline]
+    #[inline(always)]
     fn chars(&self) -> Utf8Chars<'_> {
         Utf8Chars::new(self)
     }
     /// Convenience method for creating a byte index and
     /// UTF-8 iterator for the slice.
-    #[inline]
+    #[inline(always)]
     fn char_indices(&self) -> Utf8CharIndices<'_> {
         Utf8CharIndices::new(self)
     }

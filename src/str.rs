@@ -132,9 +132,9 @@ where
         // we know that the second byte exists.
         let second = *unsafe { self.inner.next().unwrap_unchecked() };
         if first < LeadForThreeByte::MIN as u8 {
-            // SAFETY: We checked the invariant of
-            // `self.handler.two_byte` with `below_three_byte(first)` given
-            // given the safety invariant of this method.
+            // SAFETY: The invariant of `self.handler.two_byte` holds
+            // due to the the combination of the safety invariant of
+            // this method and the comparison immediately above.
             //
             // INVARIANT UPHELD for `self.inner`:
             // We consumed a complete UTF-8 sequence.
@@ -151,9 +151,9 @@ where
         if first < LeadForFourByte::MIN as u8 {
             // SAFETY: We checked the invariant of
             // `self.handler.three_byte` with the combination of
-            // `below_three_byte(first)`, and
-            // `below_four_byte(first)` given given
-            // given the safety invariant of this method.
+            // the safety invariant of this method, the comparison
+            // immediately above, and the earlier comparison with
+            // `LeadForThreeByte::MIN`.
             //
             // INVARIANT UPHELD for `self.inner`:
             // We consumed a complete UTF-8 sequence.
@@ -200,7 +200,7 @@ where
 {
     type Item = H::Output;
 
-    #[inline]
+    #[inline(always)]
     fn next(&mut self) -> Option<H::Output> {
         let first = *self.inner.next()?;
         if let Ok(ascii) = Ascii::try_new(first) {
@@ -217,13 +217,29 @@ where
         // to be consumed.
         Some(unsafe { self.consume_continuations(first) })
     }
+
+    #[inline(always)]
+    fn count(self) -> usize {
+        self.as_str().chars().count()
+    }
+
+    #[inline(always)]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+
+    #[inline(always)]
+    fn last(mut self) -> Option<Self::Item> {
+        // No need to go through the entire string.
+        self.next_back()
+    }
 }
 
 impl<'a, H> DoubleEndedIterator for CharsWithHandler<'a, H>
 where
     H: Utf8Handler,
 {
-    #[inline]
+    #[inline(always)]
     fn next_back(&mut self) -> Option<H::Output> {
         let last = *self.inner.next_back()?;
         if let Ok(ascii) = Ascii::try_new(last) {
