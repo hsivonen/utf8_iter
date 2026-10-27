@@ -96,7 +96,7 @@ impl Utf8Handler for ErrorReportingHandler {
         Ok(sequence.to_char())
     }
 
-    /// Map a singe UTF-8 error to `Output`.
+    /// Map a single UTF-8 error to `Output`.
     ///
     /// What constitutes a single error is defined by the
     /// WHATWG Encoding Standard.

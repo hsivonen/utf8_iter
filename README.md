@@ -36,7 +36,7 @@ online.
 
 ### 1.1.0
 
-* Increase MSRV to 1.81 (for `core::error::Error`)
+* Increase MSRV to 1.83
 * Reformulate the crate in terms of a pluggable handler trait.
 * Depend on `utf_types` for making the handler interface safe and
   for de-duplicating a lookup table in apps that also depend on

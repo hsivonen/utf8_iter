@@ -15,6 +15,7 @@
 // limitations under the Licenses.
 
 #![no_std]
+#![warn(missing_docs)]
 
 //! Provides iteration by `char` over `&[u8]` containing potentially-invalid
 //! UTF-8 such that errors are handled according to the [WHATWG Encoding
@@ -36,9 +37,8 @@
 mod basic;
 mod handler;
 mod indices;
-mod report;
-#[macro_use]
 mod macros;
+mod report;
 mod str;
 
 pub use crate::basic::DefaultHandler;

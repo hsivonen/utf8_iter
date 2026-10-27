@@ -39,6 +39,7 @@ macro_rules! named_iterators_from_no_argument_handler {
 
             /// Views the current remaining data in the iterator as a subslice
             /// of the original slice.
+            #[must_use]
             #[inline(always)]
             pub fn as_slice(&self) -> &'a [u8] {
                 self.inner.as_slice()
@@ -105,10 +106,12 @@ macro_rules! named_iterators_from_no_argument_handler {
             /// Views the current remaining data in the iterator as a subslice
             /// of the original slice.
             #[inline(always)]
+            #[must_use]
             pub fn as_slice(&self) -> &'a [u8] {
                 self.inner.as_slice()
             }
 
+            /// The current index offset
             #[inline(always)]
             #[must_use]
             pub fn offset(&self) -> usize {

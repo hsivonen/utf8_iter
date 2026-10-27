@@ -34,7 +34,7 @@ where
 {
     /// # Safety-usable invariant
     ///
-    /// When entering a `next`, `next_back`, or `next_with_passthrough_bound`
+    /// When entering a `next`, `next_back`, or `next_with_minimum_lead`
     /// call, this slice is well-formed UTF-8, and when those methods return,
     /// this is again well-formed UTF-8.
     inner: core::slice::Iter<'a, u8>,
@@ -133,7 +133,7 @@ where
         let second = *unsafe { self.inner.next().unwrap_unchecked() };
         if first < LeadForThreeByte::MIN as u8 {
             // SAFETY: The invariant of `self.handler.two_byte` holds
-            // due to the the combination of the safety invariant of
+            // due to the combination of the safety invariant of
             // this method and the comparison immediately above.
             //
             // INVARIANT UPHELD for `self.inner`:
@@ -225,7 +225,8 @@ where
 
     #[inline(always)]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.inner.size_hint()
+        let len = self.as_str().len();
+        (len.div_ceil(4), Some(len))
     }
 
     #[inline(always)]

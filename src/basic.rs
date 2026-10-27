@@ -29,7 +29,8 @@ use crate::Utf8Handler;
 pub struct DefaultHandler;
 
 impl DefaultHandler {
-    pub fn new() -> Self {
+    /// Constructs a new `DefaultHandler`
+    pub const fn new() -> Self {
         Self {}
     }
 }
@@ -62,28 +63,12 @@ impl Utf8Handler for DefaultHandler {
     }
 
     /// Map a four-byte UTF-8 sequence to `Output`.
-    ///
-    /// When `Output` is `char`, `sequence.to_char()`
-    /// is the appropriate implementation.
-    ///
-    /// The implementation is expected to be marked
-    /// `#[inline(always)]`.
     #[inline(always)]
     fn four_byte(&self, sequence: FourByteSequence) -> Self::Output {
         sequence.to_char()
     }
 
-    /// Map a singe UTF-8 error to `Output`.
-    ///
-    /// What constitutes a single error is defined by the
-    /// WHATWG Encoding Standard.
-    ///
-    /// When `Output` is `char`,
-    /// `char::REPLACEMENT_CHARACTER`
-    /// is the appropriate implementation.
-    ///
-    /// The implementation of this method is expected to
-    /// be declared `#[inline(always)]`.
+    /// Map a single UTF-8 error to `Output`.
     #[inline(always)]
     fn error(&self) -> Self::Output {
         char::REPLACEMENT_CHARACTER
@@ -106,7 +91,9 @@ crate::macros::named_iterators_from_no_argument_handler!(
 /// Convenience trait that adds `chars()` and `char_indices()` methods
 /// similar to the ones on string slices to byte slices.
 pub trait Utf8CharsEx {
+    /// Iterator over `char`s
     fn chars(&self) -> Utf8Chars<'_>;
+    /// Iterator over `char`s and their indices
     fn char_indices(&self) -> Utf8CharIndices<'_>;
 }
 

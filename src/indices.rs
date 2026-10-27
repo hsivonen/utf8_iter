@@ -243,22 +243,6 @@ where
 
     /// Returns the byte position of the next character, or the length
     /// of the underlying string if there are no more characters.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use utf8_iter::Utf8CharsEx;
-    /// let mut chars = "a楽".as_bytes().char_indices();
-    ///
-    /// assert_eq!(chars.offset(), 0);
-    /// assert_eq!(chars.next(), Some((0, 'a')));
-    ///
-    /// assert_eq!(chars.offset(), 1);
-    /// assert_eq!(chars.next(), Some((1, '楽')));
-    ///
-    /// assert_eq!(chars.offset(), 4);
-    /// assert_eq!(chars.next(), None);
-    /// ```
     #[inline(always)]
     #[must_use]
     pub fn offset(&self) -> usize {

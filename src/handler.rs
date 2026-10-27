@@ -16,6 +16,11 @@
 
 //! UTF-8 decoding with pluggable handler for the four byte sequence
 //! lengths and error.
+//!
+//! The handler implementation is expected not to mutate any state.
+//! Its primary purpose is to allow read-only data structure lookups
+//! to be fused into the decoder when the data structure layout benefits
+//! from knowing more UTF-8 structure detail than `char` provides.
 
 use core::iter::FusedIterator;
 
@@ -274,7 +279,7 @@ where
     #[inline(always)]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.remaining.len();
-        ((len + 3) / 4, Some(len))
+        (len.div_ceil(4), Some(len))
     }
 
     #[inline(always)]
