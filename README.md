@@ -41,6 +41,8 @@ online.
 * Depend on `utf_types` for making the handler interface safe and
   for de-duplicating a lookup table in apps that also depend on
   `encoding_rs` in addition to depending on this crate.
+* Improve performance particularly for backward iteration and
+  for two-byte sequence forward iteration.
 
 ### 1.0.4
 
