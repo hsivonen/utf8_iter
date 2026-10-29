@@ -176,7 +176,7 @@ where
                 // we had one, `next` would have consumed it. Consume three bytes
                 // if we have a three-byte prefix of a four-byte sequence.
                 // Otherwise, fall through to consuming one byte.
-                if prepared_three.sequence_prefix_assuming_not_well_formed_single_or_two_byte() {
+                if prepared_three.prefix_of_four_byte() {
                     self.remaining = after_three;
                     return Some(self.error());
                 }
@@ -186,7 +186,7 @@ where
             // a two-byte UTF-8 sequence. If it is a prefix of a three-byte
             // sequence or of a four-byte sequence, consume both bytes.
             // Otherwise, fall through to consuming one byte.
-            if prepared_two.sequence_prefix_assuming_first_not_ascii() {
+            if prepared_two.sequence_prefix() {
                 self.remaining = after_two;
                 return Some(self.error());
             }
