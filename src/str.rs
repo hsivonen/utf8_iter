@@ -14,6 +14,8 @@
 // See the Licenses for the specific language governing permissions and
 // limitations under the Licenses.
 
+#![allow(unsafe_code)] // Needed to make efficient use of the invariant of `str`
+
 use crate::Utf8Handler;
 
 use utf_types::utf8::Ascii;

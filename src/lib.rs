@@ -16,6 +16,7 @@
 
 #![no_std]
 #![warn(missing_docs)]
+#![deny(unsafe_code)] // overridden in `str.rs`
 
 //! Provides iteration by `char` over `&[u8]` containing potentially-invalid
 //! UTF-8 such that errors are handled according to the [WHATWG Encoding
