@@ -14,4 +14,4 @@ keywords = ["encoding", "UTF-8", "unicode", "iterator"]
 categories = ["text-processing", "encoding", "internationalization"]
 
 [dependencies]
-utf_types = { path = "../utf_types" }
+utf_types = "1"
