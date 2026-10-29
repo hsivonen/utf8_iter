@@ -25,7 +25,7 @@ This is a `no_std` crate.
 TL;DR: `Apache-2.0 OR MIT`
 
 Please see the file named
-[COPYRIGHT](https://github.com/hsivonen/utf8_iter/blob/master/COPYRIGHT).
+[COPYRIGHT](https://github.com/hsivonen/utf8_iter/blob/main/COPYRIGHT).
 
 ## Documentation
 
